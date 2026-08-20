@@ -100,6 +100,13 @@ Authors
 
 * Sawir Studio
 
+Contributors
+------------
+
+- `Binhex <https://www.binhex.cloud/>`__:
+
+  - Oliver Garcia
+
 Maintainers
 -----------
 
