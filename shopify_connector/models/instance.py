@@ -270,22 +270,34 @@ class ShopifyInstance(models.Model):
         return token["access_token"]
 
     def _lock_for_access_token_renewal(self, cr):
-        """Lock the instance row of ``cr`` for an access token renewal.
+        """Take the renewal lock of this instance in the transaction of ``cr``.
 
         Return whether the row is visible to ``cr``. An instance created by the
         calling transaction is not committed yet, so no other worker can renew
         its token and there is nothing to serialise.
+
+        The lock is an advisory one rather than ``SELECT ... FOR UPDATE``
+        because ``cr`` runs in a transaction of its own: a row lock would queue
+        behind the one the calling transaction takes when it flushes a pending
+        write of the same instance, and wait for our own transaction until the
+        timeout elapses. ``action_test_connection`` has exactly that shape, and
+        only survives a row lock because Odoo defers the ``UPDATE`` until the
+        next flush. An advisory lock never collides with the row locks the ORM
+        takes, so the renewal stops depending on when a flush happens.
         """
         self.ensure_one()
         cr.execute(
             "SELECT set_config(%s, %s, true)",
             ["lock_timeout", f"{ACCESS_TOKEN_LOCK_TIMEOUT_SECONDS}s"],
         )
+        cr.execute("SELECT id FROM shopify_instance WHERE id = %s", [self.id])
+        if not cr.rowcount:
+            return False
         cr.execute(
-            "SELECT id FROM shopify_instance WHERE id = %s FOR UPDATE",
+            "SELECT pg_advisory_xact_lock(hashtext('shopify.instance'), %s)",
             [self.id],
         )
-        return bool(cr.rowcount)
+        return True
 
     def _renew_access_token_locked(self):
         """Request an access token, letting a single worker renew at a time.

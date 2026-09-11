@@ -454,7 +454,14 @@ class TestShopifyInstanceClientCredentials(TransactionCase):
         )
 
     def test_expired_token_is_renewed_in_its_own_locked_transaction(self):
-        """The renewal commits on its own, so waiting workers can see it."""
+        """The renewal commits on its own, so waiting workers can see it.
+
+        ``enter_registry_test_mode`` makes the nested cursor reuse the
+        transaction of this test, so the renewal lock is never actually
+        contended here: the tests using it cover the statements and the
+        branches around the lock, not the serialisation itself, which only a
+        second database connection would exercise.
+        """
         self._expire_the_stored_token()
 
         with (
@@ -506,7 +513,7 @@ class TestShopifyInstanceClientCredentials(TransactionCase):
 
         self.assertTrue(self.instance._lock_for_access_token_renewal(cr))
 
-        timeout, row = cr.execute.call_args_list
+        timeout, visibility, lock = cr.execute.call_args_list
         self.assertEqual(
             timeout.args,
             (
@@ -517,8 +524,13 @@ class TestShopifyInstanceClientCredentials(TransactionCase):
                 ],
             ),
         )
-        self.assertIn("FOR UPDATE", row.args[0])
-        self.assertEqual(row.args[1], [self.instance.id])
+        self.assertEqual(visibility.args[1], [self.instance.id])
+        self.assertIn("FROM shopify_instance", visibility.args[0])
+        self.assertEqual(lock.args[1], [self.instance.id])
+        self.assertIn("pg_advisory_xact_lock", lock.args[0])
+        # A row lock would queue behind the pending write of the caller.
+        for statement in (visibility, lock):
+            self.assertNotIn("FOR UPDATE", statement.args[0])
 
     def test_instance_of_an_uncommitted_transaction_is_renewed_without_the_lock(self):
         """Nothing else can renew a row no other transaction can see yet."""
@@ -526,6 +538,9 @@ class TestShopifyInstanceClientCredentials(TransactionCase):
         cr.rowcount = 0
 
         self.assertFalse(self.instance._lock_for_access_token_renewal(cr))
+
+        for statement in cr.execute.call_args_list:
+            self.assertNotIn("pg_advisory_xact_lock", statement.args[0])
 
     def _patch_the_lock_timing_out(self):
         return patch.object(
