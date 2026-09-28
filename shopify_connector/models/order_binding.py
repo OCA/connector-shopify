@@ -505,6 +505,12 @@ class ShopifyInstanceOrderConfig(models.Model):
     delivery_product_id = fields.Many2one(
         "product.product", check_company=True, ondelete="restrict", readonly=True
     )
+    duties_product_id = fields.Many2one(
+        "product.product",
+        check_company=True,
+        ondelete="restrict",
+        readonly=True,
+    )
     gift_card_product_id = fields.Many2one(
         "product.product", check_company=True, ondelete="restrict"
     )
@@ -528,6 +534,7 @@ class ShopifyInstanceOrderConfig(models.Model):
     def create(self, vals_list):
         instances = super().create(vals_list)
         instances._ensure_delivery_product()
+        instances._ensure_duties_product()
         return instances
 
     def write(self, values):
@@ -558,6 +565,32 @@ class ShopifyInstanceOrderConfig(models.Model):
                 }
             )
         )
+        
+    def _create_duties_product(self, company, instance_name):
+        return (
+            self.env["product.product"]
+            .sudo()
+            .with_company(company)
+            .create(
+                {
+                    "name": self.env._("Shopify Duties - %s", instance_name),
+                    "type": "service",
+                    "sale_ok": True,
+                    "purchase_ok": False,
+                    "company_id": company.id,
+                }
+            )
+        )
+
+    def _ensure_duties_product(self):
+        for instance in self:
+            if instance.duties_product_id:
+                continue
+            product = instance._create_duties_product(
+                instance.company_id, instance.name
+            )
+            instance.sudo().duties_product_id = product
+        return self.mapped("duties_product_id")
 
     def _ensure_delivery_product(self):
         for instance in self:
@@ -573,6 +606,7 @@ class ShopifyInstanceOrderConfig(models.Model):
         "company_id",
         "placeholder_product_id",
         "delivery_product_id",
+        "duties_product_id",
         "gift_card_product_id",
         "gift_card_journal_id",
     )
@@ -581,6 +615,7 @@ class ShopifyInstanceOrderConfig(models.Model):
             records = (
                 instance.placeholder_product_id
                 | instance.delivery_product_id
+                | instance.duties_product_id
                 | instance.gift_card_product_id
             )
             if records.filtered(
@@ -645,6 +680,7 @@ class SaleOrderLineShopify(models.Model):
     shopify_expected_total = fields.Char(readonly=True, copy=False)
     shopify_is_shipping = fields.Boolean(readonly=True, copy=False)
     shopify_is_gift_card = fields.Boolean(readonly=True, copy=False)
+    shopify_is_duty = fields.Boolean(readonly=True, copy=False)
 
 
 class StockPickingShopifyRisk(models.Model):

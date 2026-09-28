@@ -12,7 +12,6 @@ MONEY_FIELDS = """
 ORDER_FIELDS = f"""
     id
     name
-    orderNumber
     createdAt
     updatedAt
     cancelledAt
@@ -38,6 +37,8 @@ ORDER_FIELDS = f"""
     currentTotalDiscountsSet {{ {MONEY_FIELDS} }}
     currentShippingPriceSet {{ {MONEY_FIELDS} }}
     currentTotalTaxSet {{ {MONEY_FIELDS} }}
+    currentTotalDutiesSet {{ {MONEY_FIELDS} }}
+    currentTotalAdditionalFeesSet {{ {MONEY_FIELDS} }}
     currentTotalPriceSet {{ {MONEY_FIELDS} }}
     risk {{
       assessments {{ riskLevel }}

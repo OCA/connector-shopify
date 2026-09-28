@@ -655,6 +655,8 @@ class ShopifyOrderSync(models.Model):
             if identifier not in incoming_ids and not line_binding.is_shipping:
                 line_binding.odoo_id.unlink()
         self._apply_shipping_lines(binding, sale_order, instance, order_data, country)
+        self._apply_duties_line(sale_order, instance, order_data)
+        self._apply_subtotal_adjustment(binding, sale_order, instance, order_data)
 
     def _line_binding_values(self, line_data):
         allocations = line_data["discount_allocations"]
@@ -765,6 +767,283 @@ class ShopifyOrderSync(models.Model):
         for identifier, line_binding in existing.items():
             if identifier not in incoming_ids:
                 line_binding.odoo_id.unlink()
+                
+    def _apply_duties_line(self, sale_order, instance, order_data):
+        instance._ensure_duties_product()
+
+        selected = selected_money(
+            order_data["duties_total"],
+            instance.order_currency_policy == "presentment",
+        )
+        amount = decimal_amount(selected["amount"])
+
+        existing = sale_order.order_line.filtered("shopify_is_duty")
+
+        # Shopify has no duties for this order:
+        # remove a previously imported duty line if one exists.
+        if not amount:
+            existing.unlink()
+            return
+
+        values = {
+            "order_id": sale_order.id,
+            "product_id": instance.duties_product_id.id,
+            "name": self.env._("Import Duties"),
+            "product_uom_qty": 1,
+            "product_uom_id": instance.duties_product_id.uom_id.id,
+            "price_unit": selected["amount"],
+            "discount": 0,
+            "tax_ids": [Command.clear()],
+            "shopify_expected_total": selected["amount"],
+            "shopify_is_duty": True,
+        }
+
+        if existing:
+            line = existing[:1]
+            line.with_context(shopify_order_import=True).write(values)
+
+            # Defensive cleanup if an earlier bug created duplicates.
+            (existing - line).unlink()
+        else:
+            (
+                self.env["sale.order.line"]
+                .with_company(instance.company_id)
+                .with_context(shopify_order_import=True)
+                .create(values)
+            )
+            
+    def _apply_subtotal_adjustment(
+        self,
+        binding,
+        sale_order,
+        instance,
+        order_data,
+    ):
+        identifier = f"shopify-subtotal-adjustment:{order_data['id']}"
+
+        existing = sale_order.order_line.filtered(
+            lambda line: line.shopify_line_id == identifier
+        )
+
+        use_presentment = instance.order_currency_policy == "presentment"
+        currency = sale_order.currency_id
+        rounding = Decimal(str(currency.rounding))
+        tolerance = rounding / Decimal("2")
+
+        # ------------------------------------------------------------
+        # 1. Shopify tax and Odoo tax must already match.
+        #    Otherwise this is NOT a rounding adjustment.
+        # ------------------------------------------------------------
+
+        expected_tax = decimal_amount(
+            selected_money(
+                order_data["tax_total"],
+                use_presentment,
+            )["amount"]
+        )
+
+        sale_order.invalidate_recordset(
+            ["amount_untaxed", "amount_tax", "amount_total"]
+        )
+
+        actual_tax = Decimal(str(sale_order.amount_tax))
+
+        if abs(actual_tax - expected_tax) >= tolerance:
+            existing.unlink()
+            return
+
+        # ------------------------------------------------------------
+        # 2. Compare Shopify's order-level subtotal with the sum of
+        #    the actual imported Shopify PRODUCT lines.
+        #
+        #    Shipping, duties and this adjustment line are excluded.
+        # ------------------------------------------------------------
+
+        product_bindings = binding.line_binding_ids.filtered(
+            lambda item: not item.is_shipping and item.odoo_id
+        )
+        product_lines = product_bindings.mapped("odoo_id")
+
+        if order_data["taxes_included"]:
+            actual_subtotal = sum(
+                (
+                    Decimal(str(line.price_total))
+                    for line in product_lines
+                ),
+                Decimal("0"),
+            )
+        else:
+            actual_subtotal = sum(
+                (
+                    Decimal(str(line.price_subtotal))
+                    for line in product_lines
+                ),
+                Decimal("0"),
+            )
+
+        expected_subtotal = decimal_amount(
+            selected_money(
+                order_data["subtotal"],
+                use_presentment,
+            )["amount"]
+        )
+
+        subtotal_difference = expected_subtotal - actual_subtotal
+
+        # ------------------------------------------------------------
+        # 3. Independently calculate the remaining ORDER total
+        #    difference.
+        #
+        #    Ignore an existing adjustment from a previous import.
+        # ------------------------------------------------------------
+
+        existing_total = sum(
+            (
+                Decimal(str(line.price_total))
+                for line in existing
+            ),
+            Decimal("0"),
+        )
+
+        current_total_without_adjustment = (
+            Decimal(str(sale_order.amount_total)) - existing_total
+        )
+
+        expected_total = decimal_amount(
+            self._shopify_expected_order_total(
+                instance,
+                order_data,
+            )
+        )
+
+        total_difference = (
+            expected_total - current_total_without_adjustment
+        )
+
+        # ------------------------------------------------------------
+        # 4. The subtotal discrepancy must explain the ENTIRE order
+        #    discrepancy.
+        #
+        #    If not, something else is wrong: duties, shipping,
+        #    fees, taxes, etc. Do not hide it.
+        # ------------------------------------------------------------
+
+        if abs(subtotal_difference - total_difference) >= tolerance:
+            existing.unlink()
+            return
+
+        # Nothing to reconcile.
+        if abs(subtotal_difference) < tolerance:
+            existing.unlink()
+            return
+
+        # ------------------------------------------------------------
+        # 5. Guardrail:
+        #
+        #    Allow at most one currency rounding unit per current
+        #    Shopify item, capped at 50 minor currency units.
+        #
+        #    Examples with 0.01 rounding:
+        #      17 items -> max 0.17
+        #      46 items -> max 0.46
+        #      100 items -> max 0.50
+        # ------------------------------------------------------------
+
+        item_count = sum(
+            max(0, int(line["quantity"]))
+            for line in order_data["lines"]
+        )
+
+        allowed_units = min(max(item_count, 1), 50)
+        max_adjustment = rounding * Decimal(str(allowed_units))
+
+        if abs(subtotal_difference) > max_adjustment:
+            existing.unlink()
+            return
+
+        # ------------------------------------------------------------
+        # 6. Create/update the technical tax-free adjustment line.
+        # ------------------------------------------------------------
+
+        product = self._shopify_adjustment_product(instance)
+
+        values = {
+            "order_id": sale_order.id,
+            "product_id": product.id,
+            "name": self.env._("Shopify Subtotal Rounding"),
+            "product_uom_qty": 1,
+            "product_uom_id": product.uom_id.id,
+            "price_unit": format(subtotal_difference, "f"),
+            "discount": 0,
+            "tax_ids": [Command.clear()],
+            "shopify_line_id": identifier,
+            "shopify_expected_total": format(
+                subtotal_difference,
+                "f",
+            ),
+        }
+
+        if existing:
+            line = existing[:1]
+
+            line.with_context(
+                shopify_order_import=True
+            ).write(values)
+
+            (existing - line).unlink()
+
+        else:
+            (
+                self.env["sale.order.line"]
+                .with_company(instance.company_id)
+                .with_context(shopify_order_import=True)
+                .create(values)
+            )
+            
+    def _shopify_adjustment_product(self, instance):
+        product = (
+            self.env["product.product"]
+            .sudo()
+            .with_company(instance.company_id)
+            .search(
+                [
+                    (
+                        "default_code",
+                        "=",
+                        "SHOPIFY-SUBTOTAL-ROUNDING",
+                    ),
+                    (
+                        "company_id",
+                        "=",
+                        instance.company_id.id,
+                    ),
+                ],
+                limit=1,
+            )
+        )
+
+        if not product:
+            product = (
+                self.env["product.product"]
+                .sudo()
+                .with_company(instance.company_id)
+                .create(
+                    {
+                        "name": self.env._(
+                            "Shopify Subtotal Rounding"
+                        ),
+                        "default_code": (
+                            "SHOPIFY-SUBTOTAL-ROUNDING"
+                        ),
+                        "type": "service",
+                        "sale_ok": True,
+                        "purchase_ok": False,
+                        "company_id": instance.company_id.id,
+                    }
+                )
+            )
+
+        return product
 
     def _line_product(self, instance, line_data):
         if line_data["gift_card"]:
@@ -773,6 +1052,7 @@ class ShopifyOrderSync(models.Model):
                     self.env._("Configure the Shopify gift-card liability product.")
                 )
             return instance.gift_card_product_id
+
         variant = self.env["shopify.product.variant"].search(
             [
                 ("instance_id", "=", instance.id),
@@ -780,13 +1060,35 @@ class ShopifyOrderSync(models.Model):
             ],
             limit=1,
         )
+
         if variant:
             return variant.odoo_id
+
+        # Fallback for old Shopify order lines where the current
+        # Shopify variant ID no longer exists, but the SKU is preserved.
+        if not line_data["variant_id"] and line_data["sku"]:
+            products = (
+                self.env["product.product"]
+                .with_context(active_test=False)
+                .search([
+                    ("default_code", "=", line_data["sku"]),
+                ])
+            )
+
+            if len(products) == 1:
+                return products
+                
+        if not line_data["variant_id"] and not line_data["product_id"] and not line_data["sku"]:
+            product=self.env["product.product"].with_context(active_test=False).search([("default_code","=","SHOPIFY-LEGACY-CUSTOM")],limit=1)
+            if product:
+                return product
+
         if (
             instance.unknown_product_policy == "placeholder"
             and instance.placeholder_product_id
         ):
             return instance.placeholder_product_id
+
         raise ShopifyOrderImportError(
             self.env._(
                 "No product binding exists for Shopify variant %(variant)s "
@@ -803,6 +1105,9 @@ class ShopifyOrderSync(models.Model):
     def _mapped_taxes(self, instance, tax_lines, country, included):
         taxes = self.env["account.tax"]
         for line in tax_lines:
+            selected_tax = selected_money(line["price"], instance.order_currency_policy == "presentment")
+            if decimal_amount(selected_tax["amount"]) == 0:
+                continue
             rate = format(decimal_amount(line["rate"]).normalize(), "f")
             line_country = country
             if line.get("country_code"):
