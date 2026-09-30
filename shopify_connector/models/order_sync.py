@@ -1210,10 +1210,19 @@ class ShopifyOrderSync(models.Model):
             order_data["financial_status"] == "PARTIALLY_PAID"
             and instance.auto_confirm_partially_paid
         )
+        created_at = _utc_datetime(order_data["created_at"])
+        after_cutover = (
+            not instance.auto_confirm_order_date_from
+            or (
+                created_at
+                and created_at >= instance.auto_confirm_order_date_from
+            )
+        )
         return (
             not order_data["is_draft"]
             and instance.order_confirmation_policy == "auto"
             and eligible
+            and after_cutover
             and sale_order.state in ("draft", "sent")
         )
 
