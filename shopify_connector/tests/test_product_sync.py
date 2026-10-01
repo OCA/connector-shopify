@@ -1,3 +1,4 @@
+import base64
 from unittest.mock import Mock, patch
 
 from odoo.exceptions import ValidationError
@@ -300,6 +301,72 @@ class TestShopifyProductSync(TransactionCase):
         self.assertEqual(binding.variant_binding_ids.odoo_id.ids, first_variant_ids)
         self.assertEqual(len(binding.variant_binding_ids), 2)
         self.assertEqual(len(binding.odoo_id.product_variant_ids), 2)
+
+    def test_shared_media_gid_is_scoped_per_product(self):
+        product_a = self.env["product.product"].create(
+            {
+                "name": "Shared Media A",
+                "company_id": self.instance.company_id.id,
+            }
+        )
+        product_b = self.env["product.product"].create(
+            {
+                "name": "Shared Media B",
+                "company_id": self.instance.company_id.id,
+            }
+        )
+        binding_a = self.env["shopify.product.template"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/Product/601",
+                "odoo_id": product_a.product_tmpl_id.id,
+            }
+        )
+        binding_b = self.env["shopify.product.template"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/Product/602",
+                "odoo_id": product_b.product_tmpl_id.id,
+            }
+        )
+        image_payload = [
+            {
+                "id": "gid://shopify/MediaImage/603",
+                "url": "https://cdn.shopify.com/shared.png",
+                "alt": "Shared image",
+            }
+        ]
+        image_bytes = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
+            "/x8AAusB9Y9Zl1sAAAAASUVORK5CYII="
+        )
+        sync_model = self.env["shopify.product.template"]
+
+        with patch.object(
+            type(sync_model),
+            "_download_image",
+            autospec=True,
+            return_value=image_bytes,
+        ):
+            sync_model._sync_images(binding_a, image_payload, [], prune=True)
+            sync_model._sync_images(binding_b, image_payload, [], prune=True)
+
+        image_bindings = self.env["shopify.product.image"].search(
+            [
+                ("instance_id", "=", self.instance.id),
+                ("shopify_id", "=", "gid://shopify/MediaImage/603"),
+            ]
+        )
+        self.assertEqual(len(image_bindings), 2)
+        self.assertEqual(
+            set(image_bindings.mapped("template_binding_id").ids),
+            {binding_a.id, binding_b.id},
+        )
+        self.assertEqual(len(image_bindings.mapped("odoo_id")), 2)
+        self.assertEqual(
+            set(image_bindings.mapped("odoo_id.product_tmpl_id").ids),
+            {product_a.product_tmpl_id.id, product_b.product_tmpl_id.id},
+        )
 
     def test_company_change_is_blocked_after_product_sync(self):
         product = self.env["product.product"].create(
