@@ -140,7 +140,7 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         before = self.env["sale.order"].search_count([])
 
         result = self.order_model._job_import_order(
-            self.instance.id, self._payload(order_id=2, total="10.01")
+            self.instance.id, self._payload(order_id=2, total="10.02")
         )
 
         binding = self.order_model.search(
@@ -153,6 +153,25 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         self.assertEqual(binding.state, "error")
         self.assertFalse(binding.odoo_id)
         self.assertEqual(self.env["sale.order"].search_count([]), before)
+
+    def test_subtotal_rounding_adjustment_accepts_one_currency_unit(self):
+        result = self.order_model._job_import_order(
+            self.instance.id, self._payload(order_id=9, total="10.01")
+        )
+
+        binding = self.order_model.browse(result)
+        order = binding.odoo_id
+        adjustment = order.order_line.filtered(
+            lambda line: line.shopify_line_id
+            == "shopify-subtotal-adjustment:gid://shopify/Order/9"
+        )
+
+        self.assertTrue(result)
+        self.assertEqual(binding.state, "synced")
+        self.assertEqual(len(adjustment), 1)
+        self.assertAlmostEqual(order.amount_total, 10.01, places=2)
+        self.assertAlmostEqual(adjustment.price_unit, 0.01, places=2)
+        self.assertFalse(adjustment.tax_ids)
 
     def test_order_edit_after_delivery_is_rejected(self):
         binding_id = self.order_model._job_import_order(
