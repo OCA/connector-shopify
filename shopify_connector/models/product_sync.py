@@ -691,7 +691,6 @@ class ShopifyProductTemplateSync(models.Model):
             product["collections"],
             replace=complete_snapshot,
         )
-        """
         if seed_all or owners["images"] == "shopify":
             self._sync_images(
                 binding,
@@ -699,7 +698,6 @@ class ShopifyProductTemplateSync(models.Model):
                 product["variants"],
                 prune=complete_snapshot,
             )
-            """
 
     @api.model
     def _sync_options(self, template, options, variants):
@@ -982,6 +980,7 @@ class ShopifyProductTemplateSync(models.Model):
             image_binding = self.env["shopify.product.image"].search(
                 [
                     ("instance_id", "=", template_binding.instance_id.id),
+                    ("template_binding_id", "=", template_binding.id),
                     ("shopify_id", "=", payload["id"]),
                 ],
                 limit=1,
