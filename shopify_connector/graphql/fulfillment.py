@@ -22,6 +22,11 @@ FULFILLMENT_ORDER_FIELDS = """
         lineItem { id }
       }
     }
+    fulfillments(first: 250) {
+      nodes {
+        id
+      }
+    }
 """
 
 ORDER_FULFILLMENT_ORDERS_QUERY = (

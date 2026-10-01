@@ -113,6 +113,23 @@ class ShopifyOrderFulfillmentSync(models.Model):
             binding = self._upsert_fulfillment_order(payload)
             imported |= binding
             seen.add(binding.shopify_id)
+
+            for fulfillment in _nodes(payload.get("fulfillments")):
+                fulfillment_id = str(fulfillment.get("id") or "")
+                if fulfillment_id:
+                    self.env["shopify.fulfillment"].with_delay(
+                        description=self.env._(
+                            "Import Shopify fulfillment %s", fulfillment_id
+                        ),
+                        identity_key=(
+                            f"shopify.fulfillment.poll."
+                            f"{self.instance_id.id}.{fulfillment_id}"
+                        ),
+                    )._job_import_from_shopify(
+                        self.instance_id.id,
+                        fulfillment_id,
+                    )
+
         stale = self.fulfillment_order_ids.filtered(
             lambda item: item.shopify_id not in seen
         )
