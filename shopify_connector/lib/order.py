@@ -619,7 +619,7 @@ def normalize_order_payload(
             "total_tax",
             fallback_currency=currency,
         ),
-            "duties_total": _money(
+        "duties_total": _money(
             payload,
             "currentTotalDutiesSet",
             "current_total_duties_set",

@@ -767,7 +767,7 @@ class ShopifyOrderSync(models.Model):
         for identifier, line_binding in existing.items():
             if identifier not in incoming_ids:
                 line_binding.odoo_id.unlink()
-                
+
     def _apply_duties_line(self, sale_order, instance, order_data):
         instance._ensure_duties_product()
 
@@ -811,7 +811,7 @@ class ShopifyOrderSync(models.Model):
                 .with_context(shopify_order_import=True)
                 .create(values)
             )
-            
+
     def _apply_subtotal_adjustment(
         self,
         binding,
@@ -866,18 +866,12 @@ class ShopifyOrderSync(models.Model):
 
         if order_data["taxes_included"]:
             actual_subtotal = sum(
-                (
-                    Decimal(str(line.price_total))
-                    for line in product_lines
-                ),
+                (Decimal(str(line.price_total)) for line in product_lines),
                 Decimal("0"),
             )
         else:
             actual_subtotal = sum(
-                (
-                    Decimal(str(line.price_subtotal))
-                    for line in product_lines
-                ),
+                (Decimal(str(line.price_subtotal)) for line in product_lines),
                 Decimal("0"),
             )
 
@@ -898,10 +892,7 @@ class ShopifyOrderSync(models.Model):
         # ------------------------------------------------------------
 
         existing_total = sum(
-            (
-                Decimal(str(line.price_total))
-                for line in existing
-            ),
+            (Decimal(str(line.price_total)) for line in existing),
             Decimal("0"),
         )
 
@@ -916,9 +907,7 @@ class ShopifyOrderSync(models.Model):
             )
         )
 
-        total_difference = (
-            expected_total - current_total_without_adjustment
-        )
+        total_difference = expected_total - current_total_without_adjustment
 
         # ------------------------------------------------------------
         # 4. The subtotal discrepancy must explain the ENTIRE order
@@ -949,10 +938,7 @@ class ShopifyOrderSync(models.Model):
         #      100 items -> max 0.50
         # ------------------------------------------------------------
 
-        item_count = sum(
-            max(0, int(line["quantity"]))
-            for line in order_data["lines"]
-        )
+        item_count = sum(max(0, int(line["quantity"])) for line in order_data["lines"])
 
         allowed_units = min(max(item_count, 1), 50)
         max_adjustment = rounding * Decimal(str(allowed_units))
@@ -986,9 +972,7 @@ class ShopifyOrderSync(models.Model):
         if existing:
             line = existing[:1]
 
-            line.with_context(
-                shopify_order_import=True
-            ).write(values)
+            line.with_context(shopify_order_import=True).write(values)
 
             (existing - line).unlink()
 
@@ -999,7 +983,7 @@ class ShopifyOrderSync(models.Model):
                 .with_context(shopify_order_import=True)
                 .create(values)
             )
-            
+
     def _shopify_adjustment_product(self, instance):
         product = (
             self.env["product.product"]
@@ -1029,12 +1013,8 @@ class ShopifyOrderSync(models.Model):
                 .with_company(instance.company_id)
                 .create(
                     {
-                        "name": self.env._(
-                            "Shopify Subtotal Rounding"
-                        ),
-                        "default_code": (
-                            "SHOPIFY-SUBTOTAL-ROUNDING"
-                        ),
+                        "name": self.env._("Shopify Subtotal Rounding"),
+                        "default_code": ("SHOPIFY-SUBTOTAL-ROUNDING"),
                         "type": "service",
                         "sale_ok": True,
                         "purchase_ok": False,
@@ -1070,16 +1050,26 @@ class ShopifyOrderSync(models.Model):
             products = (
                 self.env["product.product"]
                 .with_context(active_test=False)
-                .search([
-                    ("default_code", "=", line_data["sku"]),
-                ])
+                .search(
+                    [
+                        ("default_code", "=", line_data["sku"]),
+                    ]
+                )
             )
 
             if len(products) == 1:
                 return products
-                
-        if not line_data["variant_id"] and not line_data["product_id"] and not line_data["sku"]:
-            product=self.env["product.product"].with_context(active_test=False).search([("default_code","=","SHOPIFY-LEGACY-CUSTOM")],limit=1)
+
+        if (
+            not line_data["variant_id"]
+            and not line_data["product_id"]
+            and not line_data["sku"]
+        ):
+            product = (
+                self.env["product.product"]
+                .with_context(active_test=False)
+                .search([("default_code", "=", "SHOPIFY-LEGACY-CUSTOM")], limit=1)
+            )
             if product:
                 return product
 
@@ -1105,7 +1095,9 @@ class ShopifyOrderSync(models.Model):
     def _mapped_taxes(self, instance, tax_lines, country, included):
         taxes = self.env["account.tax"]
         for line in tax_lines:
-            selected_tax = selected_money(line["price"], instance.order_currency_policy == "presentment")
+            selected_tax = selected_money(
+                line["price"], instance.order_currency_policy == "presentment"
+            )
             if decimal_amount(selected_tax["amount"]) == 0:
                 continue
             rate = format(decimal_amount(line["rate"]).normalize(), "f")
@@ -1211,12 +1203,8 @@ class ShopifyOrderSync(models.Model):
             and instance.auto_confirm_partially_paid
         )
         created_at = _utc_datetime(order_data["created_at"])
-        after_cutover = (
-            not instance.auto_confirm_order_date_from
-            or (
-                created_at
-                and created_at >= instance.auto_confirm_order_date_from
-            )
+        after_cutover = not instance.auto_confirm_order_date_from or (
+            created_at and created_at >= instance.auto_confirm_order_date_from
         )
         return (
             not order_data["is_draft"]

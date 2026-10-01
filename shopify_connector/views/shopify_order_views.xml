@@ -223,10 +223,10 @@
                         </group>
                         <group string="State and Risk">
                             <field name="order_confirmation_policy" />
-							<field
-								name="auto_confirm_order_date_from"
-								invisible="order_confirmation_policy != 'auto'"
-							/>
+                            <field
+                                name="auto_confirm_order_date_from"
+                                invisible="order_confirmation_policy != 'auto'"
+                            />
                             <field
                                 name="auto_confirm_paid"
                                 invisible="order_confirmation_policy != 'auto'"

@@ -485,12 +485,12 @@ class ShopifyInstanceOrderConfig(models.Model):
     auto_confirm_paid = fields.Boolean(default=True)
     auto_confirm_partially_paid = fields.Boolean(default=True)
     auto_confirm_order_date_from = fields.Datetime(
-    string="Auto-confirm Orders From",
-    help=(
-        "Only Shopify orders created on or after this timestamp "
-        "may be automatically confirmed."
-    ),
-)
+        string="Auto-confirm Orders From",
+        help=(
+            "Only Shopify orders created on or after this timestamp "
+            "may be automatically confirmed."
+        ),
+    )
     refund_uninvoiced_policy = fields.Selection(
         [("adjust", "Adjust Order"), ("cancel", "Cancel Fully Refunded Order")],
         required=True,
@@ -572,7 +572,7 @@ class ShopifyInstanceOrderConfig(models.Model):
                 }
             )
         )
-        
+
     def _create_duties_product(self, company, instance_name):
         return (
             self.env["product.product"]
