@@ -593,6 +593,8 @@ class ShopifyProductTemplateSync(models.Model):
             "company_id": instance.company_id.id,
             "description_sale": product["description"],
             "active": product["status"] != "ARCHIVED",
+            "type": "consu",
+            "is_storable": True,
         }
         if product["variants"]:
             values["list_price"] = self._shopify_amount_to_company(
@@ -680,12 +682,26 @@ class ShopifyProductTemplateSync(models.Model):
             binding_values["odoo_status"] = product["status"]
         binding.with_context(shopify_import=True).write(binding_values)
         self._sync_options(template, product["options"], product["variants"])
+        is_collective = (
+            instance.name == "Emerald Ripple"
+            and "shopify collective" in {
+                str(tag).strip().lower()
+                for tag in product.get("tags", [])
+            }
+        )
+        if instance.name == "Emerald Ripple":
+            binding.write({"inventory_sync_enabled": False})
+
         self._sync_variants(
             binding,
             product["variants"],
             seed_all=seed_all,
             prune=complete_snapshot,
         )
+
+        binding.variant_binding_ids.write({
+            "inventory_sync_enabled": False if instance.name == "Emerald Ripple" else not is_collective,
+        })
         self._sync_collections(
             binding,
             product["collections"],
@@ -828,6 +844,19 @@ class ShopifyProductTemplateSync(models.Model):
                 "state": "synced",
                 "error_message": False,
             }
+            
+            if not variant_binding:
+                variant_binding = self.env["shopify.product.variant"].search(
+                    [
+                        ("instance_id", "=", instance.id),
+                        ("template_binding_id", "=", template_binding.id),
+                        ("odoo_id", "=", variant.id),
+                    ],
+                    limit=1,
+                )
+                if variant_binding:
+                    binding_values["shopify_id"] = payload["id"]
+
             if variant_binding:
                 variant_binding.write(binding_values)
             else:
@@ -838,6 +867,7 @@ class ShopifyProductTemplateSync(models.Model):
                         "shopify_id": payload["id"],
                     }
                 )
+
             if price_owned or (seed_all and len(variants) > 1):
                 self._sync_variant_price(
                     template_binding.instance_id,
@@ -1122,6 +1152,10 @@ class ShopifyProductTemplateSync(models.Model):
 
     @api.model
     def _enqueue_product_export(self, instance, template):
+        # ITH policy: Shopify owns the product catalogue.
+        # Never enqueue product writes to Shopify.
+        return False
+
         if not instance.active:
             return False
         binding = self.search(
@@ -1139,6 +1173,9 @@ class ShopifyProductTemplateSync(models.Model):
 
     @api.model
     def _job_export_product(self, instance_id, template_id):
+        # ITH policy: never write product catalogue to Shopify.
+        return False
+
         self = self.sudo()
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if instance:

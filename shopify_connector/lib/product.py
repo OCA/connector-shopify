@@ -179,7 +179,9 @@ def normalize_product_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "variants": variants,
         "images": images,
         "collections": collections,
+        "tags": payload.get("tags") or [],
     }
+
 
 
 def normalize_bulk_products(

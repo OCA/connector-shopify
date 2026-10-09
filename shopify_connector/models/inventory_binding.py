@@ -239,7 +239,7 @@ class ShopifyProductVariantInventory(models.Model):
 
     def _is_storable_inventory_product(self):
         self.ensure_one()
-        product = self.odoo_id
+        product = self.stock_product_id or self.odoo_id
         if "is_storable" in product._fields:
             return bool(product.is_storable)
         return product.type == "product"

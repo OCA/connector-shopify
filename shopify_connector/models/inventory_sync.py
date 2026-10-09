@@ -319,7 +319,7 @@ class ShopifyProductVariantInventorySync(models.Model):
 
     def _odoo_inventory_quantity(self, location_binding, *, apply_export_policy=True):
         self.ensure_one()
-        product = self.odoo_id.with_company(self.instance_id.company_id).with_context(
+        product = (self.stock_product_id or self.odoo_id).with_company(self.instance_id.company_id).with_context(
             location=location_binding.odoo_location_id.id
         )
         quantity = quantity_for_basis(
@@ -464,7 +464,7 @@ class ShopifyProductVariantInventorySync(models.Model):
             self.inventory_tracked = False
             return None
         level = item.get("inventoryLevel")
-        if not level or not level.get("isActive"):
+        if not level:
             return None
         return available_quantity(level)
 
@@ -571,6 +571,10 @@ class StockQuantShopifyInventory(models.Model):
                 bindings = variant_model.search(
                     [
                         ("instance_id", "=", location.instance_id.id),
+                        "|",
+                        ("stock_product_id", "=", product.id),
+                        "&",
+                        ("stock_product_id", "=", False),
                         ("odoo_id", "=", product.id),
                         ("state", "=", "synced"),
                         ("inventory_sync_enabled", "=", True),

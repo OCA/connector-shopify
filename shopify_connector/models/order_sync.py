@@ -781,7 +781,7 @@ class ShopifyOrderSync(models.Model):
             limit=1,
         )
         if variant:
-            return variant.odoo_id
+            return variant.stock_product_id or variant.odoo_id
         if (
             instance.unknown_product_policy == "placeholder"
             and instance.placeholder_product_id

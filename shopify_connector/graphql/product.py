@@ -93,6 +93,7 @@ query ProductById(
     descriptionHtml
     handle
     status
+    tags
     updatedAt
     options {
       id
