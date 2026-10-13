@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="queue_channel_external" model="queue.job.channel">
+        <field name="name">external</field>
+        <field name="parent_id" ref="shopify_connector.queue_channel_shopify"/>
+        <field name="removal_interval">30</field>
+    </record>
+
+    <record id="job_external_order_sync" model="queue.job.function">
+        <field name="name">&lt;shopify.order&gt;._ith_fetch_and_reconcile_external</field>
+        <field name="channel_id" ref="queue_channel_external"/>
+    </record>
+</odoo>

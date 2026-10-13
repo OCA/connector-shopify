@@ -781,7 +781,32 @@ class ShopifyOrderSync(models.Model):
             limit=1,
         )
         if variant:
-            return variant.odoo_id
+            if variant.stock_product_id:
+                expected_sku = variant.stock_product_id.default_code
+                actual_sku = line_data.get("sku")
+                if not actual_sku or actual_sku != expected_sku:
+                    raise ShopifyOrderImportError(
+                        self.env._(
+                            "Shopify variant %(variant)s has SKU %(actual)s, "
+                            "but its stock product %(product)s has SKU %(expected)s. "
+                            "Order import blocked pending stock mapping review.",
+                            variant=line_data["variant_id"],
+                            actual=actual_sku or "(empty)",
+                            product=variant.stock_product_id.id,
+                            expected=expected_sku or "(empty)",
+                        )
+                    )
+            if not variant.stock_product_id:
+                raise ShopifyOrderImportError(
+                    self.env._(
+                        "Shopify variant %(variant)s (SKU %(sku)s) has no "
+                        "canonical stock product. Order import blocked pending "
+                        "stock mapping; retry after mapping is resolved.",
+                        variant=line_data["variant_id"],
+                        sku=line_data.get("sku") or "(empty)",
+                    )
+                )
+            return variant.stock_product_id
         if (
             instance.unknown_product_policy == "placeholder"
             and instance.placeholder_product_id

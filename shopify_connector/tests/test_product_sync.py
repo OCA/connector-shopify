@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch
 
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tests.common import TransactionCase
 
 from ..lib.product import merge_owned_fields
@@ -26,6 +26,7 @@ class TestShopifyProductSync(TransactionCase):
                 "name": "Barcode Product",
                 "barcode": "MATCH-BARCODE",
                 "company_id": self.instance.company_id.id,
+                "is_storable": False,
             }
         )
         self.env["product.product"].create(
@@ -33,6 +34,7 @@ class TestShopifyProductSync(TransactionCase):
                 "name": "SKU Product",
                 "default_code": "MATCH-SKU",
                 "company_id": self.instance.company_id.id,
+                "is_storable": False,
             }
         )
         payload = {
@@ -56,6 +58,7 @@ class TestShopifyProductSync(TransactionCase):
                 "name": "SKU Product",
                 "default_code": "ONLY-SKU",
                 "company_id": self.instance.company_id.id,
+                "is_storable": False,
             }
         )
 
@@ -70,10 +73,10 @@ class TestShopifyProductSync(TransactionCase):
         self.assertEqual(
             self.instance._product_field_owners(),
             {
-                "name": "odoo",
-                "description": "odoo",
-                "price": "odoo",
-                "images": "odoo",
+                "name": "shopify",
+                "description": "shopify",
+                "price": "shopify",
+                "images": "shopify",
                 "status": "shopify",
             },
         )
@@ -83,7 +86,7 @@ class TestShopifyProductSync(TransactionCase):
             self.instance._product_field_owners(),
             source="shopify",
         )
-        self.assertEqual(merged, {"name": "Odoo", "status": "ACTIVE"})
+        self.assertEqual(merged, {"name": "Shopify", "status": "ACTIVE"})
 
     def test_product_webhook_dispatch_queues_gid_keyed_import(self):
         event = self.env["shopify.webhook.event"].create(
@@ -118,117 +121,143 @@ class TestShopifyProductSync(TransactionCase):
         )
         delayed._job_import_product_from_api.assert_called_once()
 
-    def test_export_uses_mock_client_and_creates_bindings(self):
-        product = self.env["product.product"].create(
-            {
-                "name": "Export Product",
-                "default_code": "EXPORT-1",
-                "barcode": "90001",
-                "list_price": 25,
-                "company_id": self.instance.company_id.id,
-            }
+
+    def test_canonical_stock_prefers_active_over_archived(self):
+        sku = "ITH-TEST-ACTIVE-ARCHIVED"
+
+        active = self.env["product.product"].create({
+            "name": "Active Stock Item",
+            "default_code": sku,
+            "is_storable": True,
+        })
+        archived = self.env["product.product"].create({
+            "name": "Archived Stock Item",
+            "default_code": sku,
+            "is_storable": True,
+        })
+        archived.action_archive()
+
+        resolved = self.env[
+            "shopify.product.template"
+        ]._resolve_stock_product_by_sku(
+            self.instance, sku, "Test Product"
         )
-        client = Mock()
-        exported_product = {
-            "id": "gid://shopify/Product/90",
-            "title": "Export Product",
-            "handle": "export-product",
-            "status": "ACTIVE",
-            "updatedAt": "2026-07-29T00:00:00Z",
-            "variants": {
-                "nodes": [
-                    {
-                        "id": "gid://shopify/ProductVariant/91",
-                        "sku": "EXPORT-1",
-                        "barcode": "90001",
-                        "price": "25.00",
-                        "selectedOptions": [
-                            {
-                                "name": "Title",
-                                "value": "Default Title",
-                            }
-                        ],
-                    }
-                ],
-                "pageInfo": {"hasNextPage": False, "endCursor": "v1"},
-            },
-            "media": {
-                "nodes": [],
-                "pageInfo": {"hasNextPage": False, "endCursor": None},
-            },
-            "collections": {
-                "nodes": [],
-                "pageInfo": {"hasNextPage": False, "endCursor": None},
-            },
-        }
-        client.execute.side_effect = [
-            {"metafieldDefinition": None},
-            {
-                "metafieldDefinitionCreate": {
-                    "createdDefinition": {"id": "gid://shopify/MetafieldDefinition/1"}
-                }
-            },
-            {
-                "productSet": {
-                    "product": {
-                        "id": "gid://shopify/Product/90",
-                    }
-                }
-            },
-            {"product": exported_product},
-        ]
-        instance_model_class = type(self.instance)
+
+        self.assertEqual(resolved.id, active.id)
+        self.assertFalse(archived.active)
+
+    def test_canonical_stock_reuses_same_sku(self):
+        resolver = self.env["shopify.product.template"]
+        sku = "ITH-TEST-CANONICAL-001"
+
+        first = resolver._resolve_stock_product_by_sku(
+            self.instance, sku, "Canonical Test"
+        )
+        second = resolver._resolve_stock_product_by_sku(
+            self.instance, sku, "Canonical Test"
+        )
+
+        self.assertEqual(first, second)
+        self.assertTrue(first.is_storable)
+        self.assertEqual(first.default_code, sku)
+        self.assertFalse(first.company_id)
+
+    def test_canonical_stock_reuses_company_product(self):
+        product = self.env["product.product"].create({
+            "name": "Existing Stock",
+            "default_code": "ITH-TEST-COMPANY-001",
+            "company_id": self.instance.company_id.id,
+            "is_storable": True,
+        })
+
+        result = self.env["shopify.product.template"]._resolve_stock_product_by_sku(
+            self.instance, product.default_code, product.name
+        )
+
+        self.assertEqual(result, product)
+
+    def test_canonical_stock_blocks_archived_product(self):
+        product = self.env["product.product"].create({
+            "name": "Archived Stock",
+            "default_code": "ITH-TEST-ARCHIVED-001",
+            "is_storable": True,
+        })
+        product.active = False
+
+        with self.assertRaises(UserError):
+            self.env["shopify.product.template"]._resolve_stock_product_by_sku(
+                self.instance, product.default_code, product.name
+            )
+
+    def test_canonical_stock_blocks_duplicate_products(self):
+        sku = "ITH-TEST-DUPLICATE-001"
+        for index in range(2):
+            self.env["product.product"].create({
+                "name": f"Duplicate {index}",
+                "default_code": sku,
+                "is_storable": True,
+            })
+
+        with self.assertRaises(UserError):
+            self.env["shopify.product.template"]._resolve_stock_product_by_sku(
+                self.instance, sku, "Duplicate"
+            )
+
+    def test_canonical_stock_ignores_empty_sku(self):
+        result = self.env["shopify.product.template"]._resolve_stock_product_by_sku(
+            self.instance, "", "No SKU"
+        )
+        self.assertFalse(result)
+
+    def test_canonical_stock_blocks_technical_product(self):
+        sku = "ITH-TEST-TECHNICAL-001"
+
+        product = self.env["product.product"].create({
+            "name": "Technical Shopify Product",
+            "default_code": sku,
+            "company_id": self.instance.company_id.id,
+            "is_storable": True,
+        })
+
+        template_binding = self.env["shopify.product.template"].create({
+            "instance_id": self.instance.id,
+            "odoo_id": product.product_tmpl_id.id,
+            "shopify_id": "gid://shopify/Product/900001",
+        })
+
+        self.env["shopify.product.variant"].create({
+            "instance_id": self.instance.id,
+            "template_binding_id": template_binding.id,
+            "odoo_id": product.id,
+            "shopify_id": "gid://shopify/ProductVariant/900001",
+            "sku_snapshot": sku,
+        })
+
+        with self.assertRaises(UserError):
+            self.env["shopify.product.template"]._resolve_stock_product_by_sku(
+                self.instance, sku, product.name
+            )
+
+    def test_product_catalog_export_is_blocked(self):
+        """Odoo must never send product catalogue changes to Shopify."""
+        product = self.env["product.product"].create({
+            "name": "Export Block Test",
+            "default_code": "EXPORT-BLOCK-TEST",
+            "company_id": self.instance.company_id.id,
+        })
 
         with patch.object(
-            instance_model_class,
+            type(self.instance),
             "_shopify_client",
             autospec=True,
-            return_value=client,
-        ):
-            binding_id = self.env["shopify.product.template"]._job_export_product(
+        ) as client:
+            result = self.env["shopify.product.template"]._job_export_product(
                 self.instance.id, product.product_tmpl_id.id
             )
 
-        binding = self.env["shopify.product.template"].browse(binding_id)
-        self.assertEqual(binding.shopify_id, "gid://shopify/Product/90")
-        self.assertEqual(
-            binding.variant_binding_ids.shopify_id,
-            "gid://shopify/ProductVariant/91",
-        )
-        self.assertEqual(client.execute.call_count, 4)
-        definition_variables = client.execute.call_args_list[1].args[1]
-        self.assertEqual(definition_variables["definition"]["type"], "id")
-        product_set_variables = client.execute.call_args_list[2].args[1]
-        self.assertEqual(
-            product_set_variables["input"]["productOptions"],
-            [
-                {
-                    "name": "Title",
-                    "position": 1,
-                    "values": [{"name": "Default Title"}],
-                }
-            ],
-        )
-        self.assertEqual(
-            product_set_variables["input"]["variants"][0]["optionValues"],
-            [{"optionName": "Title", "name": "Default Title"}],
-        )
-        database_uuid = (
-            self.env["ir.config_parameter"].sudo().get_param("database.uuid")
-        )
-        self.assertEqual(
-            product_set_variables["identifier"],
-            {
-                "customId": {
-                    "key": "odoo_product_id",
-                    "value": (
-                        f"{database_uuid or self.env.cr.dbname}:"
-                        f"{self.instance.id}:"
-                        f"{product.product_tmpl_id.id}"
-                    ),
-                }
-            },
-        )
+            self.assertFalse(result)
+            client.assert_not_called()
+
 
     def test_repeated_sparse_import_preserves_variant_binding_identity(self):
         payload = {

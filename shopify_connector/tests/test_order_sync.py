@@ -107,6 +107,27 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         payload.update(values)
         return payload
 
+    def test_mismatched_stock_sku_blocks_order_import(self):
+        stock_product = self.env["product.product"].create({
+            "name": "Different Stock Product",
+            "default_code": "DIFFERENT-SKU",
+            "company_id": False,
+        })
+        self.variant_binding.write({
+            "stock_product_id": stock_product.id,
+        })
+
+        binding_id = self.order_model._job_import_order(
+            self.instance.id,
+            self._payload(order_id=9991),
+        )
+        binding = self.order_model.browse(binding_id)
+
+        self.assertEqual(binding.state, "error")
+        self.assertIn("SKU", binding.error_message)
+        self.assertIn("stock mapping review", binding.error_message)
+        self.assertFalse(binding.odoo_id)
+
     def test_order_build_and_edit_are_idempotent(self):
         binding_id = self.order_model._job_import_order(
             self.instance.id, self._payload()

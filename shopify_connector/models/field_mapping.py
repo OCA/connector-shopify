@@ -16,10 +16,10 @@ PRODUCT_FIELDS = (
 )
 
 DEFAULT_PRODUCT_FIELD_OWNERS = {
-    "name": "odoo",
-    "description": "odoo",
-    "price": "odoo",
-    "images": "odoo",
+    "name": "shopify",
+    "description": "shopify",
+    "price": "shopify",
+    "images": "shopify",
     "status": "shopify",
 }
 

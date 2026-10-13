@@ -230,7 +230,24 @@ class ShopifyInstanceInventorySync(models.Model):
                     variant.inventory_item_shopify_id,
                     location.shopify_id,
                 )
-                desired[key] = variant._odoo_inventory_quantity(location)
+                try:
+                    quantity = variant._odoo_inventory_quantity(location)
+                except UserError as exc:
+                    self._write_log(
+                        entity="inventory",
+                        direction="export",
+                        level="error",
+                        message=self.env._(
+                            "Inventory reconciliation skipped variant %(variant)s "
+                            "at %(location)s: %(error)s",
+                            variant=variant.shopify_id,
+                            location=location.name,
+                            error=exc,
+                        ),
+                        record=variant,
+                    )
+                    continue
+                desired[key] = quantity
                 binding_by_key[key] = (variant, location)
         for key in desired.keys() - remote.keys():
             variant, location = binding_by_key[key]
@@ -249,11 +266,26 @@ class ShopifyInstanceInventorySync(models.Model):
         corrections = diff_inventory_levels(desired, remote)
         for correction in corrections:
             variant, location = binding_by_key[correction["key"]]
-            variant._push_inventory_level(
-                location,
-                remote_quantity=correction["remote"],
-                reason="reconcile",
-            )
+            try:
+                variant._push_inventory_level(
+                    location,
+                    remote_quantity=correction["remote"],
+                    reason="reconcile",
+                )
+            except UserError as exc:
+                self._write_log(
+                    entity="inventory",
+                    direction="export",
+                    level="error",
+                    message=self.env._(
+                        "Inventory correction skipped variant %(variant)s "
+                        "at %(location)s: %(error)s",
+                        variant=variant.shopify_id,
+                        location=location.name,
+                        error=exc,
+                    ),
+                    record=variant,
+                )
         self._write_log(
             entity="inventory",
             direction="export",
@@ -319,7 +351,32 @@ class ShopifyProductVariantInventorySync(models.Model):
 
     def _odoo_inventory_quantity(self, location_binding, *, apply_export_policy=True):
         self.ensure_one()
-        product = self.odoo_id.with_company(self.instance_id.company_id).with_context(
+        if self.stock_product_id:
+            expected_sku = self.stock_product_id.default_code
+            actual_sku = self.sku_snapshot
+            if not actual_sku or actual_sku != expected_sku:
+                raise UserError(
+                    self.env._(
+                        "Inventory export blocked: Shopify variant %(variant)s "
+                        "has SKU %(actual)s, but stock product %(product)s "
+                        "has SKU %(expected)s. Review stock mapping.",
+                        variant=self.shopify_id,
+                        actual=actual_sku or "(empty)",
+                        product=self.stock_product_id.id,
+                        expected=expected_sku or "(empty)",
+                    )
+                )
+        if not self.stock_product_id:
+            raise UserError(
+                self.env._(
+                    "Inventory export blocked: Shopify variant %s "
+                    "has no canonical stock product.",
+                    self.shopify_id,
+                )
+            )
+        product = self.stock_product_id.with_company(
+            self.instance_id.company_id
+        ).with_context(
             location=location_binding.odoo_location_id.id
         )
         quantity = quantity_for_basis(
@@ -464,7 +521,7 @@ class ShopifyProductVariantInventorySync(models.Model):
             self.inventory_tracked = False
             return None
         level = item.get("inventoryLevel")
-        if not level or not level.get("isActive"):
+        if not level:
             return None
         return available_quantity(level)
 
@@ -571,7 +628,7 @@ class StockQuantShopifyInventory(models.Model):
                 bindings = variant_model.search(
                     [
                         ("instance_id", "=", location.instance_id.id),
-                        ("odoo_id", "=", product.id),
+                        ("stock_product_id", "=", product.id),
                         ("state", "=", "synced"),
                         ("inventory_sync_enabled", "=", True),
                         (

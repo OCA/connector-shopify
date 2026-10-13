@@ -217,8 +217,9 @@ class ShopifyProductVariantInventory(models.Model):
         "template_binding_id.inventory_sync_enabled",
         "inventory_tracked",
         "inventory_item_shopify_id",
-        "odoo_id.is_storable",
-        "odoo_id.type",
+        "stock_product_id",
+        "stock_product_id.is_storable",
+        "stock_product_id.type",
     )
     def _compute_inventory_sync_status(self):
         for binding in self:
@@ -239,7 +240,9 @@ class ShopifyProductVariantInventory(models.Model):
 
     def _is_storable_inventory_product(self):
         self.ensure_one()
-        product = self.odoo_id
+        product = self.stock_product_id
+        if not product:
+            return False
         if "is_storable" in product._fields:
             return bool(product.is_storable)
         return product.type == "product"

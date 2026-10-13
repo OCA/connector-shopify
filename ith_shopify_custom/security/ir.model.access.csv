@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ith_external_stock_manager,ith.external.stock.manager,model_ith_external_stock,stock.group_stock_manager,1,1,1,0
+access_ith_external_stock_import_manager,ith.external.stock.import.manager,model_ith_external_stock_import,stock.group_stock_manager,1,1,1,1
+access_ith_external_stock_movement_manager,ith.external.stock.movement.manager,model_ith_external_stock_movement,stock.group_stock_manager,1,1,1,0

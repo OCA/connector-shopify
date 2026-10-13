@@ -109,6 +109,13 @@ class ShopifyProductVariant(models.Model):
         index=True,
         ondelete="cascade",
     )
+    stock_product_id = fields.Many2one(
+        "product.product",
+        string="Shared Stock Product",
+        index=True,
+        ondelete="restrict",
+        help="Odoo product used as the source of inventory quantities.",
+    )
     sku_snapshot = fields.Char(string="Shopify SKU", readonly=True)
     barcode_snapshot = fields.Char(string="Shopify Barcode", readonly=True)
     price_snapshot = fields.Char(
