@@ -42,6 +42,11 @@ durable execution, and scheduled reconciliation repairs missed or
 delayed events. Onboarding, health checks, a sync dashboard, error
 recovery, and configurable retention support day-to-day operation.
 
+Product images cover the main image of each product and the images of
+its variants. Synchronizing the other Shopify product media needs the
+glue module Shopify Connector Website Sale, which installs automatically
+with eCommerce.
+
 **Table of contents**
 
 .. contents::
