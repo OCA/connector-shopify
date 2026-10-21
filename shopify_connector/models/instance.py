@@ -530,6 +530,9 @@ class ShopifyInstance(models.Model):
             raise UserError(self.env._("Configure the Odoo web base URL first."))
         return f"{base_url.rstrip('/')}/shopify/webhook/{self.id}"
 
+    def _required_webhook_topics(self):
+        return REQUIRED_WEBHOOK_TOPICS
+
     def _webhook_repair_error(self, reason):
         self.ensure_one()
         self._record_failure(
@@ -559,7 +562,7 @@ class ShopifyInstance(models.Model):
             for node in nodes
             if isinstance(node, dict) and node.get("topic")
         }
-        for topic in REQUIRED_WEBHOOK_TOPICS:
+        for topic in self._required_webhook_topics():
             existing = subscriptions.get(topic)
             current_url = (
                 existing.get("endpoint", {}).get("callbackUrl") if existing else None
