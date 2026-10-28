@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 19.0\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-10-26 15:56+0000\n"
+"PO-Revision-Date: 2026-10-28 11:46+0000\n"
 "Last-Translator: mymage <stefano.consolaro@mymage.it>\n"
 "Language-Team: none\n"
 "Language: it\n"
@@ -1381,7 +1381,7 @@ msgstr "Invia webhook Shopify %s"
 #: model:ir.model.fields,field_description:shopify_connector.field_stock_picking__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_stock_quant__display_name
 msgid "Display Name"
-msgstr "Display nome"
+msgstr "Nome visualizzato"
 
 #. module: shopify_connector
 #: model:ir.model.fields.selection,name:shopify_connector.selection__shopify_webhook_event__state__done
@@ -3606,7 +3606,7 @@ msgstr "Ordine di vendita"
 #. module: shopify_connector
 #: model:ir.model,name:shopify_connector.model_sale_order_line
 msgid "Sales Order Line"
-msgstr "Riga d'ordine di vendita"
+msgstr "Riga ordine di vendita"
 
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance_wizard__scope_check_ok
