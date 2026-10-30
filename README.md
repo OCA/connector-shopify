@@ -25,6 +25,7 @@ addon | version | maintainers | summary
 [shopify_connector](shopify_connector/) | 18.0.1.2.0 |  | GraphQL-first Shopify commerce synchronization
 [shopify_connector_account](shopify_connector_account/) | 18.0.1.0.0 |  | Shopify Payments payouts, fees, disputes, and reconciliation
 [shopify_connector_pos](shopify_connector_pos/) | 18.0.1.0.0 |  | Import Shopify POS sales into location-routed sale orders
+[shopify_connector_website_sale](shopify_connector_website_sale/) | 18.0.1.0.0 |  | Synchronize Shopify product media with eCommerce extra product media
 
 [//]: # (end addons)
 

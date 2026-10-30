@@ -1,10 +1,11 @@
 [project]
 name = "odoo-addons-oca-connector-shopify"
-version = "18.0.20260910.1"
+version = "18.0.20261030.0"
 dependencies = [
     "odoo-addon-shopify_connector==18.0.*",
     "odoo-addon-shopify_connector_account==18.0.*",
     "odoo-addon-shopify_connector_pos==18.0.*",
+    "odoo-addon-shopify_connector_website_sale==18.0.*",
 ]
 classifiers=[
     "Programming Language :: Python",
