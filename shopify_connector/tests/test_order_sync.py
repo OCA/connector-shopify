@@ -156,6 +156,19 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         self.assertFalse(binding.odoo_id)
         self.assertEqual(self.env["sale.order"].search_count([]), before)
 
+    def test_fixed_discount_over_several_units_matches_shopify_total(self):
+        payload = self._payload(order_id=30, quantity=3, total="20.00")
+        line = payload["lineItems"]["nodes"][0]
+        line["discountedUnitPriceAfterAllDiscountsSet"] = self._bag("6.67")
+        line["discountAllocations"] = [{"allocatedAmountSet": self._bag("10.00")}]
+
+        binding = self.order_model.browse(
+            self.order_model._job_import_order(self.instance.id, payload)
+        )
+
+        self.assertEqual(binding.state, "synced")
+        self.assertEqual(binding.odoo_id.amount_total, 20)
+
     def test_order_edit_after_delivery_is_rejected(self):
         binding_id = self.order_model._job_import_order(
             self.instance.id, self._payload(order_id=3)
