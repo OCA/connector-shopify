@@ -530,6 +530,12 @@ number still need reserved stock.</p>
 stock or a risk hold, the fulfillment goes to error with the reason. Fix
 the cause and retry it. Releasing the risk hold of an order retries its
 fulfillments automatically.</p>
+<p>The <strong>Shopify Drift: Updated Orders</strong> scheduled action imports again the
+orders updated in Shopify since the <strong>Sync Orders Updated Since</strong> date
+of each instance, then moves that date forward. It recovers the order
+changes whose webhook was missed, and skips the orders whose latest
+version Odoo already imported. To import older updated orders on the
+next run, set an earlier date on the <strong>Orders</strong> tab of the instance.</p>
 <p>Run <strong>Check Webhooks</strong> after changing domains or credentials and repair
 any missing or misrouted subscriptions. Never edit Shopify IDs or raw
 payloads.</p>
