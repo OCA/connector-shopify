@@ -9,6 +9,8 @@ from odoo.exceptions import UserError
 from odoo.fields import Command
 from odoo.tools import float_compare, float_is_zero, float_round
 
+from odoo.addons.queue_job.exception import RetryableJobError
+
 from ..graphql.fulfillment import (
     FULFILLMENT_BY_ID_QUERY,
     FULFILLMENT_CANCEL_MUTATION,
@@ -138,7 +140,34 @@ class ShopifyOrderFulfillmentSync(models.Model):
             ),
             record=self,
         )
+        self._queue_missing_fulfillments(order)
         return imported.ids
+
+    def _queue_missing_fulfillments(self, order):
+        fulfillment_ids = [
+            str(item["id"])
+            for item in _nodes(order.get("fulfillments"))
+            if item.get("id")
+        ]
+        known = set(
+            self.env["shopify.fulfillment"]
+            .search(
+                [
+                    ("instance_id", "=", self.instance_id.id),
+                    ("shopify_id", "in", fulfillment_ids),
+                ]
+            )
+            .mapped("shopify_id")
+        )
+        for fulfillment_id in fulfillment_ids:
+            if fulfillment_id in known:
+                continue
+            self.env["shopify.fulfillment"].with_delay(
+                description=self.env._("Import Shopify fulfillment %s", fulfillment_id),
+                identity_key=(
+                    f"shopify.fulfillment.import.{self.instance_id.id}.{fulfillment_id}"
+                ),
+            )._job_import_from_shopify(self.instance_id.id, fulfillment_id)
 
     def _upsert_fulfillment_order(self, payload):
         fulfillment_order_id = str(payload.get("id") or "")
@@ -785,6 +814,17 @@ class ShopifyExternalFulfillmentImport(models.Model):
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
+        self.env.cr.execute(
+            "SELECT pg_try_advisory_xact_lock(%s, hashtext(%s))",
+            (instance.id, fulfillment_id),
+        )
+        if not self.env.cr.fetchone()[0]:
+            raise RetryableJobError(
+                self.env._(
+                    "Another job is importing Shopify fulfillment %s.", fulfillment_id
+                ),
+                seconds=5,
+            )
         webhook_payload = webhook_payload or {}
         try:
             data = instance._shopify_client().execute(
@@ -809,11 +849,17 @@ class ShopifyExternalFulfillmentImport(models.Model):
             limit=1,
         )
         if not order_binding:
-            raise ShopifyFulfillmentError(
-                self.env._(
-                    "No synchronized Odoo order matches Shopify order %s.", order_id
-                )
+            instance._write_log(
+                entity="fulfillment",
+                direction="import",
+                level="info",
+                message=self.env._(
+                    "Shopify order %s is not imported yet. Its fulfillment is "
+                    "applied when the order is imported.",
+                    order_id,
+                ),
             )
+            return False
         binding = self.search(
             [
                 ("instance_id", "=", instance.id),

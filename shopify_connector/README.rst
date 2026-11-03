@@ -177,6 +177,9 @@ fulfilled items on the Odoo deliveries of the order:
   or else from a delivery carrier with the same name.
 - A fulfillment validates deliveries only once. Later updates only
   refresh its carrier and tracking numbers.
+- A fulfillment that Odoo missed, because its webhook was lost or
+  arrived before the order, is applied the next time the order is
+  imported.
 
 The fulfilled items need reserved stock, so lots and serial numbers come
 from the reservation. Enable **Ship Unreserved Stock** to also ship the
