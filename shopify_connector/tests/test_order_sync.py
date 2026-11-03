@@ -199,6 +199,28 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         self.assertFalse(result)
         self.assertNotEqual(binding.odoo_id.state, "cancel")
 
+    def test_cancel_of_confirmed_order_cancels_the_sale_order(self):
+        self.instance.order_confirmation_policy = "auto"
+        binding_id = self.order_model._job_import_order(
+            self.instance.id,
+            self._payload(order_id=12, displayFinancialStatus="PAID"),
+        )
+        binding = self.order_model.browse(binding_id)
+        self.assertEqual(binding.odoo_id.state, "sale")
+
+        result = self.order_model._job_import_order(
+            self.instance.id,
+            self._payload(
+                order_id=12,
+                displayFinancialStatus="PAID",
+                cancelledAt="2026-01-12T10:00:00Z",
+                updatedAt="2026-01-12T10:00:00Z",
+            ),
+        )
+
+        self.assertTrue(result, binding.error_message)
+        self.assertEqual(binding.odoo_id.state, "cancel")
+
     def test_unmapped_tax_records_actionable_error(self):
         payload = self._payload(order_id=5, total="11.00")
         payload["shippingAddress"] = {"countryCodeV2": "US"}
