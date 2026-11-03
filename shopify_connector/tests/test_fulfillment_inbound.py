@@ -484,3 +484,34 @@ class TestShopifyInboundFulfillment(TransactionCase):
             {self.widget: 2, self.gadget: 1},
         )
         self.assertEqual(sale.order_line.qty_delivered, 1)
+
+    def test_order_import_applies_the_fulfillments_it_missed(self):
+        self._stock(self.widget, 2)
+        self._stock(self.gadget, 2)
+        self.sale.action_confirm()
+        picking = self.sale.picking_ids
+        payload = self._payload(911, [(self.widget_line, 2), (self.gadget_line, 2)])
+        before_its_order = dict(payload, order={"id": "gid://shopify/Order/811"})
+        self.assertFalse(self._import(before_its_order))
+        client = MagicMock()
+        client.execute.side_effect = [
+            {
+                "order": {
+                    "id": self.order_binding.shopify_id,
+                    "fulfillmentOrders": {"nodes": []},
+                    "fulfillments": [{"id": payload["id"]}],
+                }
+            },
+            {"fulfillment": payload},
+        ]
+
+        with (
+            patch.object(type(self.instance), "_shopify_client", return_value=client),
+            trap_jobs() as trap,
+        ):
+            self.order_binding._job_refresh_fulfillment_orders()
+            trap.assert_jobs_count(1)
+            trap.perform_enqueued_jobs()
+
+        self.assertEqual(picking.state, "done")
+        self.assertEqual(self.order_binding.fulfillment_ids.picking_id, picking)
