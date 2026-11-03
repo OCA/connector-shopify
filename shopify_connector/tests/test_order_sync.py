@@ -138,6 +138,30 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         self.assertEqual(binding.odoo_id.order_line.product_uom_qty, 2)
         self.assertEqual(len(binding.line_binding_ids), 1)
 
+    def test_order_imports_its_customer(self):
+        payload = self._payload(order_id=14)
+        payload["customer"] = {"id": "gid://shopify/Customer/140"}
+        client = Mock()
+        client.execute.return_value = {
+            "customer": {
+                "id": "gid://shopify/Customer/140",
+                "firstName": "Order",
+                "lastName": "Buyer",
+                "defaultEmailAddress": {"emailAddress": "order.buyer@example.com"},
+            }
+        }
+
+        with patch.object(type(self.instance), "_shopify_client", return_value=client):
+            binding_id = self.order_model._job_import_order(self.instance.id, payload)
+
+        partner = self.order_model.browse(binding_id).odoo_id.partner_id
+        self.assertNotEqual(partner, self.instance.guest_partner_id)
+        self.assertEqual(partner.email, "order.buyer@example.com")
+        self.assertEqual(
+            partner.shopify_customer_binding_ids.shopify_id,
+            "gid://shopify/Customer/140",
+        )
+
     def test_total_verification_failure_leaves_no_sale_order(self):
         before = self.env["sale.order"].search_count([])
 
