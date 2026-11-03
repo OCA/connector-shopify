@@ -230,6 +230,34 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         order.action_release_shopify_risk_hold()
         self.assertFalse(order.shopify_risk_hold)
 
+    def test_sale_order_takes_the_shopify_order_name(self):
+        payload = self._payload(order_id=16)
+        payload["lineItems"]["nodes"][0]["id"] = "gid://shopify/LineItem/160"
+        existing = self.order_model.browse(
+            self.order_model._job_import_order(self.instance.id, payload)
+        )
+        odoo_name = existing.odoo_id.name
+        self.instance.order_use_shopify_name = True
+
+        payload["updatedAt"] = "2026-01-11T10:00:00Z"
+        self.order_model._job_import_order(self.instance.id, payload)
+        draft = self.order_model.browse(
+            self.order_model._job_import_order(
+                self.instance.id, self._draft_payload(), is_draft=True
+            )
+        )
+        self.assertEqual(draft.odoo_id.name, "#D90")
+        order = self.order_model.browse(
+            self.order_model._job_import_order(
+                self.instance.id,
+                self._payload(order_id=90, sourceName="shopify_draft_order"),
+            )
+        )
+
+        self.assertEqual(existing.odoo_id.name, odoo_name)
+        self.assertEqual(order.odoo_id, draft.odoo_id)
+        self.assertEqual(order.odoo_id.name, "#90")
+
     def _draft_payload(self, draft_id=90, order_id=90):
         return {
             "id": f"gid://shopify/DraftOrder/{draft_id}",
