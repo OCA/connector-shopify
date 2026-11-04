@@ -1129,7 +1129,7 @@ class ShopifyExternalFulfillmentImport(models.Model):
 
     def _external_line_needs(self, sale_line, quantity):
         ordered = sale_line.product_uom_qty
-        if float_is_zero(ordered, precision_rounding=sale_line.product_uom.rounding):
+        if float_is_zero(ordered, precision_rounding=sale_line.product_uom_id.rounding):
             return {}
         moves = self._external_chain_moves(sale_line)
         # The first step holds the whole quantity of each product, even once
@@ -1149,12 +1149,13 @@ class ShopifyExternalFulfillmentImport(models.Model):
         return needs
 
     def _external_chain_moves(self, sale_lines):
-        # The delivery and its pick and pack steps, without returns or scraps.
+        # The delivery and its pick and pack steps, without returns. Scrap
+        # moves have no outgoing or internal operation type, so they are left
+        # out as well.
         return sale_lines.move_ids.filtered(
             lambda move: (
                 move.state != "cancel"
                 and not move.origin_returned_move_id
-                and not move.scrapped
                 and (
                     move.picking_code == "outgoing"
                     or (
