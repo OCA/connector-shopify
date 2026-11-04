@@ -232,9 +232,9 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/fulfillment_sync.py:0
 msgid ""
-"A previous Shopify fulfillment attempt exists for %(picking)s without a "
-"confirmed Shopify ID. Resolve binding %(binding)s before retrying to avoid a"
-" duplicate fulfillment."
+"A previous Shopify fulfillment attempt for %(picking)s was not confirmed, "
+"and several Shopify fulfillments could be the one it created: "
+"%(fulfillments)s. Bind the right one manually."
 msgstr ""
 
 #. module: shopify_connector
@@ -532,6 +532,14 @@ msgstr ""
 #. module: shopify_connector
 #: model:ir.model.fields.selection,name:shopify_connector.selection__shopify_instance__unknown_product_policy__block
 msgid "Block With Error"
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid ""
+"Bound Shopify fulfillment %(fulfillment)s, created by an unconfirmed "
+"attempt, to delivery %(delivery)s."
 msgstr ""
 
 #. module: shopify_connector
@@ -4244,6 +4252,15 @@ msgstr ""
 msgid ""
 "Shopify fulfillment %(fulfillment)s did not validate the Odoo delivery: "
 "%(error)s"
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid ""
+"Shopify fulfillment %(fulfillment)s, created by an unconfirmed attempt for "
+"%(picking)s, was imported as an external fulfillment that validated "
+"%(other)s. Review both deliveries before binding it."
 msgstr ""
 
 #. module: shopify_connector
