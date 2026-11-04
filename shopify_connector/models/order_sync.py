@@ -701,13 +701,16 @@ class ShopifyOrderSync(models.Model):
 
     def _partner(self, instance, order_data):
         if order_data["customer_id"]:
-            customer = self.env["shopify.customer"].search(
-                [
-                    ("instance_id", "=", instance.id),
-                    ("shopify_id", "=", order_data["customer_id"]),
-                ],
-                limit=1,
-            )
+            domain = [
+                ("instance_id", "=", instance.id),
+                ("shopify_id", "=", order_data["customer_id"]),
+            ]
+            customer = self.env["shopify.customer"].search(domain, limit=1)
+            if not customer:
+                customer._job_import_customer_from_api(
+                    instance.id, order_data["customer_id"]
+                )
+                customer = customer.search(domain, limit=1)
             if customer:
                 return customer.odoo_id
         if not instance.guest_partner_id:
