@@ -1102,14 +1102,19 @@ class ShopifyOrderSync(models.Model):
         return self.env["res.country"].search([("code", "=", country_code)], limit=1)
 
     def _mapped_taxes(self, instance, tax_lines, country, included):
-        taxes = self.env["account.tax"]
+        # Two tax lines can share a rate (a 1 % city tax and a 1 % transit tax).
+        # Odoo cannot apply one tax twice on a line, so look up their sum (0.02).
+        rate_counts = Counter()
         for line in tax_lines:
-            rate = format(decimal_amount(line["rate"]).normalize(), "f")
             line_country = country
             if line.get("country_code"):
                 line_country = self.env["res.country"].search(
                     [("code", "=", line["country_code"])], limit=1
                 )
+            rate_counts[(decimal_amount(line["rate"]), line_country)] += 1
+        taxes = self.env["account.tax"]
+        for (line_rate, line_country), count in rate_counts.items():
+            rate = format((line_rate * count).normalize(), "f")
             mapping = self.env["shopify.tax.mapping"].search(
                 [
                     ("instance_id", "=", instance.id),
