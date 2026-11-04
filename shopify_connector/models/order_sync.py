@@ -478,6 +478,7 @@ class ShopifyOrderSync(models.Model):
 
     def _build_order(self, binding, instance, order_data):
         sale_order = binding.odoo_id
+        takes_shopify_name = instance.order_use_shopify_name and not sale_order
         completed_binding = self.env["shopify.order"]
         if order_data["is_draft"] and order_data["completed_order_id"]:
             completed_binding = self.search(
@@ -540,6 +541,8 @@ class ShopifyOrderSync(models.Model):
             "shopify_note": order_data["note"],
             "shopify_risk_level": order_data["risk_level"],
         }
+        if takes_shopify_name:
+            values["name"] = order_data["name"]
         values.update(self._shopify_order_extra_values(instance, order_data))
         if sale_order:
             if (
