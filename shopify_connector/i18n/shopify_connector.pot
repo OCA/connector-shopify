@@ -1977,6 +1977,7 @@ msgid "Initial Import"
 msgstr ""
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_customer__initial_seed_pending
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_product_template__initial_seed_pending
 msgid "Initial Seed Pending"
 msgstr ""
@@ -3407,6 +3408,11 @@ msgstr ""
 #: model:ir.actions.server,name:shopify_connector.action_retry_shopify_products
 #: model:ir.actions.server,name:shopify_connector.action_retry_shopify_variants
 msgid "Retry Failed Shopify Bindings"
+msgstr ""
+
+#. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_shopify_customer__initial_seed_pending
+msgid "Retry marker for a customer created in Odoo by its first import."
 msgstr ""
 
 #. module: shopify_connector
