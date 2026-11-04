@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from odoo import SUPERUSER_ID
 from odoo.sql_db import db_connect
