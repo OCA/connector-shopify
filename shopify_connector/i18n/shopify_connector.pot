@@ -2481,6 +2481,15 @@ msgid "Name"
 msgstr ""
 
 #. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_shopify_instance__order_use_shopify_name
+msgid ""
+"Name the sale orders created from Shopify after their Shopify order, such as"
+" #1001, instead of the Odoo sequence. Sale orders already in Odoo keep their"
+" name. Two stores of the same company can both send an order #1001, so their"
+" sale orders get the same name."
+msgstr ""
+
+#. module: shopify_connector
 #. odoo-python
 #: code:addons/shopify_connector/models/inventory_sync.py:0
 msgid ""
@@ -5142,6 +5151,11 @@ msgstr ""
 #. module: shopify_connector
 #: model:ir.model.fields.selection,name:shopify_connector.selection__shopify_instance__unknown_product_policy__placeholder
 msgid "Use Placeholder Product"
+msgstr ""
+
+#. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__order_use_shopify_name
+msgid "Use Shopify Order Name"
 msgstr ""
 
 #. module: shopify_connector
