@@ -837,6 +837,12 @@ msgid "Connection test failed: %s"
 msgstr ""
 
 #. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/instance.py:0
+msgid "Connection to Shopify shop %s restored automatically."
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model,name:shopify_connector.model_res_partner
 msgid "Contact"
 msgstr ""
@@ -4451,6 +4457,11 @@ msgstr ""
 #. module: shopify_connector
 #: model:ir.actions.server,name:shopify_connector.ir_cron_prune_shopify_logs_ir_actions_server
 msgid "Shopify: Prune old synchronization logs"
+msgstr ""
+
+#. module: shopify_connector
+#: model:ir.actions.server,name:shopify_connector.ir_cron_retest_shopify_connections_ir_actions_server
+msgid "Shopify: Retest failed connections (hourly)"
 msgstr ""
 
 #. module: shopify_connector
