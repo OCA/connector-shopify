@@ -1101,8 +1101,7 @@ class ShopifyOrderSync(models.Model):
                 raise ShopifyOrderImportError(
                     self.env._("Shopify cancelled an order already delivered in Odoo.")
                 )
-            if sale_order.state != "cancel":
-                sale_order.with_context(disable_cancel_warning=True).action_cancel()
+            self._cancel_sale_order(sale_order)
             return
         if self._should_confirm_shopify_order(instance, order_data, sale_order):
             sale_order.action_confirm()
@@ -1140,6 +1139,21 @@ class ShopifyOrderSync(models.Model):
         return bool(
             sale_order.picking_ids.filtered(lambda picking: picking.state == "done")
         )
+
+    def _cancel_sale_order(self, sale_order):
+        if sale_order.state == "cancel":
+            return
+        # Without this context, Odoo returns a confirmation wizard for a
+        # confirmed order instead of cancelling it.
+        sale_order.with_context(disable_cancel_warning=True).action_cancel()
+        if sale_order.state != "cancel":
+            raise ShopifyOrderImportError(
+                self.env._(
+                    "Shopify cancelled the order, but Odoo could not cancel "
+                    "sale order %s.",
+                    sale_order.name,
+                )
+            )
 
     def _apply_invoice_and_payments(self, binding, order_data):
         instance = binding.instance_id
@@ -1539,8 +1553,7 @@ class ShopifyOrderSync(models.Model):
             binding.instance_id.refund_uninvoiced_policy == "cancel"
             and amount >= expected_total
         ):
-            if sale_order.state != "cancel":
-                sale_order.with_context(disable_cancel_warning=True).action_cancel()
+            self._cancel_sale_order(sale_order)
             return
         for line in refund["lines"]:
             line_binding = binding.line_binding_ids.filtered(
