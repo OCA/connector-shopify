@@ -1040,7 +1040,7 @@ class ShopifyOrderSync(models.Model):
                     self.env._("Shopify cancelled an order already delivered in Odoo.")
                 )
             if sale_order.state != "cancel":
-                sale_order.action_cancel()
+                sale_order.with_context(disable_cancel_warning=True).action_cancel()
             return
         if self._should_confirm_shopify_order(instance, order_data, sale_order):
             sale_order.action_confirm()
@@ -1478,7 +1478,7 @@ class ShopifyOrderSync(models.Model):
             and amount >= expected_total
         ):
             if sale_order.state != "cancel":
-                sale_order.action_cancel()
+                sale_order.with_context(disable_cancel_warning=True).action_cancel()
             return
         for line in refund["lines"]:
             line_binding = binding.line_binding_ids.filtered(
