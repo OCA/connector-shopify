@@ -4364,6 +4364,12 @@ msgstr "Shopify ha annullato un ordine già consegnato in Odoo."
 
 #. module: shopify_connector
 #. odoo-python
+#: code:addons/shopify_connector/models/order_sync.py:0
+msgid "Shopify cancelled the order, but Odoo could not cancel sale order %s."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
 #: code:addons/shopify_connector/models/customer_sync.py:0
 msgid "Shopify companies and catalogs will be checked in the background."
 msgstr "Le aziende e i cataloghi Shopify verranno verificati in background."
