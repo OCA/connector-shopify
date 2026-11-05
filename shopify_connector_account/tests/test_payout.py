@@ -219,6 +219,45 @@ class TestShopifyPayoutAccounting(AccountTestInvoicingCommon):
             )
         )
 
+    def test_daily_import_updates_an_open_dispute_older_than_its_window(self):
+        dispute = self.instance._upsert_dispute(
+            {
+                "id": "gid://shopify/ShopifyPaymentsDispute/707",
+                "order_id": "gid://shopify/Order/708",
+                "amount": "25.00",
+                "currency": self.currency.name,
+                "status": "NEEDS_RESPONSE",
+                "type": "CHARGEBACK",
+                "reason": "FRAUDULENT",
+                "network_reason_code": "4827",
+                "initiated_at": "2026-07-20T00:00:00Z",
+                "evidence_due_by": "2026-07-30T00:00:00Z",
+                "evidence_sent_on": None,
+                "finalized_on": None,
+                "raw": {},
+            }
+        )
+        won = {
+            "id": dispute.shopify_id,
+            "initiatedAt": "2026-07-20T00:00:00Z",
+            "finalizedOn": "2026-08-25",
+            "status": "WON",
+            "type": "CHARGEBACK",
+            "amount": {"amount": "25.00", "currencyCode": self.currency.name},
+            "order": {"id": "gid://shopify/Order/708"},
+        }
+
+        def payments_page(instance, query, variables, connection):
+            # Shopify filters disputes on the day they were opened.
+            date_from = variables["query"].split()[0].split(">=")[1]
+            return {"activated": True}, [won] if date_from <= "2026-07-20" else []
+
+        with patch.object(type(self.instance), "_payments_page", autospec=True) as page:
+            page.side_effect = payments_page
+            self.instance._import_disputes("2026-08-20", "2026-08-27")
+
+        self.assertEqual(dispute.dispute_status, "WON")
+
     def test_entry_planning_boundaries_preserve_error_state(self):
         payout = self._payout(706)
 
