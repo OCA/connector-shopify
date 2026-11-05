@@ -465,6 +465,22 @@ class ShopifyInstancePayoutSync(models.Model):
         return transaction
 
     def _import_disputes(self, date_from=False, date_to=False):
+        # A dispute stays open for weeks. Reach back to the oldest open one,
+        # so that its outcome is imported too.
+        oldest_open = self.env["shopify.dispute"].search(
+            [
+                ("instance_id", "=", self.id),
+                ("dispute_status", "in", list(OPEN_DISPUTE_STATES)),
+                ("initiated_at", "!=", False),
+            ],
+            order="initiated_at",
+            limit=1,
+        )
+        if date_from and oldest_open:
+            date_from = min(
+                str(date_from)[:10],
+                fields.Date.to_string(oldest_open.initiated_at.date()),
+            )
         account, payloads = self._payments_page(
             SHOPIFY_PAYMENTS_DISPUTES_QUERY,
             {"query": _date_query("initiated_at", date_from, date_to)},
