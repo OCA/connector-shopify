@@ -748,3 +748,72 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         self.assertEqual(
             orders_updated_search(since), "updated_at:>='2026-11-02T09:30:15Z'"
         )
+
+    def _refunded_before_invoice_payload(self, order_id, refunded_quantity):
+        """Three units at 10.00, some of them refunded before any invoice."""
+        remaining = 3 - refunded_quantity
+        total = f"{remaining * 10}.00"
+        payload = self._payload(
+            order_id=order_id,
+            quantity=3,
+            total=total,
+            displayFinancialStatus="PARTIALLY_REFUNDED",
+        )
+        line = payload["lineItems"]["nodes"][0]
+        line["currentQuantity"] = remaining
+        line["refundableQuantity"] = remaining
+        payload["refunds"] = {
+            "nodes": [
+                {
+                    "id": f"gid://shopify/Refund/{order_id}1",
+                    "createdAt": "2026-01-11T10:00:00Z",
+                    "totalRefundedSet": self._bag(f"{refunded_quantity * 10}.00"),
+                    "refundLineItems": {
+                        "nodes": [
+                            {
+                                "id": f"gid://shopify/RefundLineItem/{order_id}2",
+                                "lineItem": {"id": "gid://shopify/LineItem/30"},
+                                "quantity": refunded_quantity,
+                                "restockType": "NO_RESTOCK",
+                                "subtotalSet": self._bag(
+                                    f"{refunded_quantity * 10}.00"
+                                ),
+                                "totalTaxSet": self._bag("0.00"),
+                            }
+                        ]
+                    },
+                    "refundShippingLines": {"nodes": []},
+                    "orderAdjustments": {"nodes": []},
+                    "transactions": {"nodes": []},
+                }
+            ]
+        }
+        return payload
+
+    def test_refund_before_invoice_keeps_the_current_quantity(self):
+        payload = self._refunded_before_invoice_payload(94, refunded_quantity=1)
+
+        binding_id = self.order_model._job_import_order(self.instance.id, payload)
+
+        binding = self.order_model.browse(binding_id)
+        self.assertEqual(binding.state, "synced", binding.error_message)
+        self.assertEqual(binding.odoo_id.order_line.product_uom_qty, 2)
+        self.assertEqual(binding.odoo_id.amount_total, 20)
+
+    def test_partial_refund_before_invoice_does_not_cancel_the_order(self):
+        self.instance.refund_uninvoiced_policy = "cancel"
+        payload = self._refunded_before_invoice_payload(95, refunded_quantity=2)
+
+        binding_id = self.order_model._job_import_order(self.instance.id, payload)
+
+        sale_order = self.order_model.browse(binding_id).odoo_id
+        self.assertNotEqual(sale_order.state, "cancel")
+        self.assertEqual(sale_order.order_line.product_uom_qty, 1)
+
+    def test_full_refund_before_invoice_cancels_the_order(self):
+        self.instance.refund_uninvoiced_policy = "cancel"
+        payload = self._refunded_before_invoice_payload(96, refunded_quantity=3)
+
+        binding_id = self.order_model._job_import_order(self.instance.id, payload)
+
+        self.assertEqual(self.order_model.browse(binding_id).odoo_id.state, "cancel")
