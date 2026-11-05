@@ -804,3 +804,108 @@ class TestShopifyFulfillmentSync(TransactionCase):
                 ]
             )
         )
+
+    def test_kit_delivery_is_sent_as_kits_of_its_order_line(self):
+        if "mrp.bom" not in self.env:
+            self.skipTest("Kits need the Manufacturing app.")
+        products = {}
+        for name in ("Kit", "Widget", "Gadget"):
+            products[name] = self.env["product.product"].create(
+                {
+                    "name": f"Delivered {name}",
+                    "type": "consu",
+                    "is_storable": name != "Kit",
+                    "company_id": self.instance.company_id.id,
+                }
+            )
+        kit, widget, gadget = products["Kit"], products["Widget"], products["Gadget"]
+        self.env["mrp.bom"].create(
+            {
+                "product_tmpl_id": kit.product_tmpl_id.id,
+                "type": "phantom",
+                "bom_line_ids": [
+                    (0, 0, {"product_id": widget.id, "product_qty": 1}),
+                    (0, 0, {"product_id": gadget.id, "product_qty": 2}),
+                ],
+            }
+        )
+        kit_template = self.env["shopify.product.template"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/Product/630",
+                "odoo_id": kit.product_tmpl_id.id,
+                "status": "ACTIVE",
+                "state": "synced",
+            }
+        )
+        kit_variant = self.env["shopify.product.variant"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/ProductVariant/631",
+                "template_binding_id": kit_template.id,
+                "odoo_id": kit.id,
+                "state": "synced",
+            }
+        )
+        kit_line = self.env["sale.order.line"].create(
+            {
+                "order_id": self.sale.id,
+                "product_id": kit.id,
+                "product_uom_qty": 3,
+                "price_unit": 30,
+            }
+        )
+        kit_line_binding = self.env["shopify.order.line"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/LineItem/632",
+                "order_binding_id": self.order_binding.id,
+                "odoo_id": kit_line.id,
+                "variant_shopify_id": kit_variant.shopify_id,
+                "state": "synced",
+            }
+        )
+        for product, quantity in ((self.product, 1), (widget, 3), (gadget, 6)):
+            self.env["stock.quant"]._update_available_quantity(
+                product, self.warehouse.lot_stock_id, quantity
+            )
+        self.sale.action_confirm()
+        picking = self.sale.picking_ids
+        picking.action_assign()
+        # Two whole kits and half of the third one leave in this delivery.
+        for move in picking.move_ids:
+            move.quantity = {self.product: 1, widget: 3, gadget: 5}[move.product_id]
+        picking.move_ids.picked = True
+        picking.with_context(
+            skip_shopify_fulfillment_push=True, cancel_backorder=False
+        )._action_done()
+        self.assertEqual(picking.state, "done")
+
+        moves = self.order_binding._fulfillment_allocation_input(picking)
+
+        self.assertEqual(
+            sorted(
+                (move["line_id"], move["variant_id"], move["quantity"])
+                for move in moves
+            ),
+            sorted(
+                [
+                    (self.line_binding.shopify_id, self.variant_binding.shopify_id, 1),
+                    (kit_line_binding.shopify_id, kit_variant.shopify_id, 2),
+                ]
+            ),
+        )
+
+        # The rest of the third kit leaves in the backorder.
+        backorder = picking.backorder_ids
+        backorder.action_assign()
+        backorder.move_ids.quantity = 1
+        backorder.move_ids.picked = True
+        backorder.with_context(skip_shopify_fulfillment_push=True)._action_done()
+
+        moves = self.order_binding._fulfillment_allocation_input(backorder)
+
+        self.assertEqual(
+            [(move["line_id"], move["quantity"]) for move in moves],
+            [(kit_line_binding.shopify_id, 1)],
+        )
