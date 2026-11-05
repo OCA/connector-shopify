@@ -233,6 +233,56 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         self.assertFalse(result)
         self.assertNotEqual(binding.odoo_id.state, "cancel")
 
+    def test_cancel_that_odoo_does_not_apply_is_reported(self):
+        self.instance.order_confirmation_policy = "auto"
+        binding = self.order_model.browse(
+            self.order_model._job_import_order(
+                self.instance.id,
+                self._payload(order_id=13, displayFinancialStatus="PAID"),
+            )
+        )
+        sale_order = binding.odoo_id
+
+        # The cancel is blocked: Odoo returns an action and leaves the order.
+        with patch.object(
+            type(sale_order), "action_cancel", return_value={"type": "ir.actions"}
+        ):
+            result = self.order_model._job_import_order(
+                self.instance.id,
+                self._payload(
+                    order_id=13,
+                    displayFinancialStatus="PAID",
+                    cancelledAt="2026-01-12T10:00:00Z",
+                    updatedAt="2026-01-12T10:00:00Z",
+                ),
+            )
+
+        self.assertFalse(result)
+        self.assertEqual(sale_order.state, "sale")
+        self.assertIn("Odoo could not cancel", binding.error_message)
+
+    def test_cancel_of_confirmed_order_cancels_the_sale_order(self):
+        self.instance.order_confirmation_policy = "auto"
+        binding_id = self.order_model._job_import_order(
+            self.instance.id,
+            self._payload(order_id=12, displayFinancialStatus="PAID"),
+        )
+        binding = self.order_model.browse(binding_id)
+        self.assertEqual(binding.odoo_id.state, "sale")
+
+        result = self.order_model._job_import_order(
+            self.instance.id,
+            self._payload(
+                order_id=12,
+                displayFinancialStatus="PAID",
+                cancelledAt="2026-01-12T10:00:00Z",
+                updatedAt="2026-01-12T10:00:00Z",
+            ),
+        )
+
+        self.assertTrue(result, binding.error_message)
+        self.assertEqual(binding.odoo_id.state, "cancel")
+
     def test_unmapped_tax_records_actionable_error(self):
         payload = self._payload(order_id=5, total="11.00")
         payload["shippingAddress"] = {"countryCodeV2": "US"}
