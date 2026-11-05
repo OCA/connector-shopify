@@ -1171,12 +1171,6 @@ msgstr "Daily inventario drift reconciliation accodati."
 
 #. module: shopify_connector
 #. odoo-python
-#: code:addons/shopify_connector/models/order_sync.py:0
-msgid "Daily order drift reconciliation queued with a two-day overlap."
-msgstr "Daily ordine drift reconciliation accodati con a two-Giorno overlap."
-
-#. module: shopify_connector
-#. odoo-python
 #: code:addons/shopify_connector/models/product_sync.py:0
 msgid "Daily product drift reconciliation queued."
 msgstr "Daily prodotto drift reconciliation accodati."
@@ -3003,6 +2997,13 @@ msgstr "Numero ordine"
 #. module: shopify_connector
 #. odoo-python
 #: code:addons/shopify_connector/models/order_sync.py:0
+msgid ""
+"Order drift reconciliation queued for the orders updated since the last run."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/order_sync.py:0
 msgid "Order import queued"
 msgstr "Importazione ordine accodata"
 
@@ -3948,14 +3949,14 @@ msgid "Shopify Drift: Inventory (daily)"
 msgstr "Scostamenti Shopify: giacenze (giornaliero)"
 
 #. module: shopify_connector
-#: model:ir.actions.server,name:shopify_connector.ir_cron_reconcile_shopify_orders_ir_actions_server
-msgid "Shopify Drift: Orders, 2-day overlap (daily)"
-msgstr "Scostamenti Shopify: ordini, sovrapposizione di 2 giorni (giornaliero)"
-
-#. module: shopify_connector
 #: model:ir.actions.server,name:shopify_connector.ir_cron_reconcile_shopify_products_ir_actions_server
 msgid "Shopify Drift: Products (daily)"
 msgstr "Scostamenti Shopify: prodotti (giornaliero)"
+
+#. module: shopify_connector
+#: model:ir.actions.server,name:shopify_connector.ir_cron_reconcile_shopify_orders_ir_actions_server
+msgid "Shopify Drift: Updated Orders (daily)"
+msgstr ""
 
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_sale_order_line__shopify_expected_total
@@ -4608,6 +4609,12 @@ msgstr ""
 
 #. module: shopify_connector
 #. odoo-python
+#: code:addons/shopify_connector/models/order_sync.py:0
+msgid "Shopify returned an invalid order page cursor."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
 #: code:addons/shopify_connector/models/product_sync.py:0
 msgid "Shopify returned an invalid pagination cursor."
 msgstr "Shopify ha restituito un cursore di paginazione non valido."
@@ -4817,6 +4824,11 @@ msgstr "Subtotale"
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_fulfillment_order_view_form
 msgid "Supported Actions"
 msgstr "Azioni supportate"
+
+#. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__order_drift_since
+msgid "Sync Orders Updated Since"
+msgstr ""
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_product_template_view_search
@@ -5125,6 +5137,14 @@ msgid ""
 msgstr ""
 "Il passaggio successivo crea le sottoscrizioni ai webhook\n"
 "                         di Shopify mancanti e corregge gli URL di callback."
+
+#. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_shopify_instance__order_drift_since
+msgid ""
+"The order drift job imports again the orders updated in Shopify since this "
+"date, then moves it to the start of the run. Set an earlier date to import "
+"older updated orders on the next run."
+msgstr ""
 
 #. module: shopify_connector
 #. odoo-python
@@ -5589,6 +5609,14 @@ msgstr "nessun registro dei risultati"
 #: code:addons/shopify_connector/models/operability.py:0
 msgid "not run yet"
 msgstr "non ancora eseguito"
+
+#~ msgid "Daily order drift reconciliation queued with a two-day overlap."
+#~ msgstr ""
+#~ "Daily ordine drift reconciliation accodati con a two-Giorno overlap."
+
+#~ msgid "Shopify Drift: Orders, 2-day overlap (daily)"
+#~ msgstr ""
+#~ "Scostamenti Shopify: ordini, sovrapposizione di 2 giorni (giornaliero)"
 
 #~ msgid ""
 #~ "A previous Shopify fulfillment attempt exists for %(picking)s without a "
