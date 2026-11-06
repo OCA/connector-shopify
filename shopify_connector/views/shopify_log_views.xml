@@ -23,7 +23,7 @@
                     name="action_open_related_record"
                     type="object"
                     string="Open"
-                    icon="fa-external-link"
+                    icon="open_in_new"
                     invisible="not res_model or not res_id"
                 />
             </list>

@@ -77,7 +77,7 @@ class ShopifyInstanceCustomerSync(models.Model):
         )
 
     def _job_fetch_customers_bulk(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return 0
@@ -122,7 +122,7 @@ class ShopifyInstanceCustomerSync(models.Model):
         )
 
     def _job_import_b2b(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active or not self.b2b_import_enabled:
             return 0
@@ -243,7 +243,7 @@ class ShopifyCustomerSync(models.Model):
         payload_normalized=False,
         complete_snapshot=True,
     ):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -297,7 +297,7 @@ class ShopifyCustomerSync(models.Model):
                     seed_all=binding.initial_seed_pending,
                     complete_snapshot=complete_snapshot,
                 )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             binding.write({"state": "error", "error_message": str(exc)})
             instance._write_log(
                 entity="customer",
@@ -330,7 +330,7 @@ class ShopifyCustomerSync(models.Model):
 
     @api.model
     def _job_import_customer_from_api(self, instance_id, customer_id):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -410,7 +410,6 @@ class ShopifyCustomerSync(models.Model):
             or self.env._("Shopify Customer"),
             "email": customer["email"] or False,
             "phone": customer["phone"] or False,
-            "is_company": False,
             "company_id": instance.company_id.id,
             "customer_rank": 1,
         }
@@ -418,7 +417,7 @@ class ShopifyCustomerSync(models.Model):
     def _apply_customer(self, binding, customer, *, seed_all, complete_snapshot):
         instance = binding.instance_id
         owners = instance._customer_field_owners()
-        values = {"is_company": False, "customer_rank": 1}
+        values = {"customer_rank": 1}
         if seed_all or owners["customer_name"] == "shopify":
             values["name"] = (
                 customer["name"]
@@ -591,7 +590,7 @@ class ShopifyCustomerSync(models.Model):
             )._job_export_customer()
 
     def _job_export_customer(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.instance_id.active or not self.instance_id.customer_export_enabled:
             return False
@@ -605,7 +604,7 @@ class ShopifyCustomerSync(models.Model):
         if owners["customer_email"] == "odoo":
             values["email"] = partner.email or None
         if owners["customer_phone"] == "odoo":
-            values["phone"] = partner.phone or partner.mobile or None
+            values["phone"] = partner.phone or None
         if owners["customer_addresses"] == "odoo":
             values["addresses"] = [
                 self._export_address_values(child)
@@ -684,7 +683,6 @@ class ShopifyCompanySync(models.Model):
             partner = self.env["res.partner"].create(
                 {
                     "name": payload.get("name") or self.env._("Shopify Company"),
-                    "is_company": True,
                     "company_id": instance.company_id.id,
                     "customer_rank": 1,
                 }
@@ -699,7 +697,6 @@ class ShopifyCompanySync(models.Model):
         partner.with_context(shopify_customer_import=True).write(
             {
                 "name": payload.get("name") or partner.name,
-                "is_company": True,
                 "customer_rank": 1,
             }
         )
@@ -840,7 +837,6 @@ class ShopifyCompanySync(models.Model):
                 "parent_id": binding.odoo_id.id,
                 "company_id": binding.instance_id.company_id.id,
                 "type": "contact",
-                "is_company": False,
                 "name": customer.get("displayName")
                 or customer.get("email")
                 or self.env._("Shopify Company Contact"),

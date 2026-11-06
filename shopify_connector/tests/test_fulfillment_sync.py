@@ -178,8 +178,10 @@ class TestShopifyFulfillmentSync(TransactionCase):
         with_delay.assert_called_once()
         push.assert_called_once_with(picking.id)
         self.env.invalidate_all()
+        # Since 20.0, x2many fields hide the records the user cannot read.
+        self.assertFalse(self.sale.with_user(stock_user).shopify_binding_ids)
         with self.assertRaises(AccessError):
-            self.sale.with_user(stock_user).shopify_binding_ids.mapped("shopify_id")
+            self.sale.shopify_binding_ids.with_user(stock_user).mapped("shopify_id")
 
     def test_partial_allocation_uses_only_delivered_quantity(self):
         allocation = allocate_fulfillment_lines(
@@ -313,8 +315,10 @@ class TestShopifyFulfillmentSync(TransactionCase):
         self.assertEqual(len(log), 1)
         self.assertIn(picking.name, log.message)
         self.env.invalidate_all()
+        # Since 20.0, x2many fields hide the records the user cannot read.
+        self.assertFalse(picking.with_user(stock_user).shopify_fulfillment_ids)
         with self.assertRaises(AccessError):
-            picking.with_user(stock_user).shopify_fulfillment_ids.mapped("shopify_id")
+            picking.shopify_fulfillment_ids.with_user(stock_user).mapped("shopify_id")
 
     def _delivered_picking(self):
         self.env["shopify.location"].create(
@@ -941,7 +945,7 @@ class TestShopifyFulfillmentSync(TransactionCase):
         kit_move.copy(
             {
                 "product_id": screw.id,
-                "product_uom": dozen.id,
+                "uom_id": dozen.id,
                 "product_uom_qty": 2,
                 "sale_line_id": kit_line.id,
             }

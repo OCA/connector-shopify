@@ -10,8 +10,8 @@ import psycopg2
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 from odoo.fields import Command
-from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
-from odoo.tools import escape_psql
+from odoo.sql_db import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
+from odoo.tools.sql import escape_like_value
 
 from odoo.addons.queue_job.exception import RetryableJobError
 
@@ -131,7 +131,7 @@ class ShopifyInstanceOrderSync(models.Model):
             )
 
     def _job_fetch_orders_bulk(self, date_from=False, date_to=False):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return 0
@@ -147,7 +147,7 @@ class ShopifyInstanceOrderSync(models.Model):
         return self._queue_order_imports(orders, date_from, date_to)
 
     def _job_sync_updated_orders(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return 0
@@ -354,7 +354,7 @@ class ShopifyOrderSync(models.Model):
         payload_normalized=False,
         is_draft=False,
     ):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -487,7 +487,7 @@ class ShopifyOrderSync(models.Model):
                 self._write_success(binding, sale_order, order_data, digest)
         except (RetryableJobError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
             raise
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             values = {
                 "state": "error",
                 "error_message": str(exc),
@@ -663,7 +663,9 @@ class ShopifyOrderSync(models.Model):
         ]
         for field in ("street", "city", "zip"):
             if values[field] and values[field].strip():
-                domain.append((field, "ilike", escape_psql(values[field].strip())))
+                domain.append(
+                    (field, "ilike", escape_like_value(values[field].strip()))
+                )
         candidates = self.env["res.partner"].search(domain)
         # Prefer the customer itself, as before.
         for candidate in (candidates & partner) | (candidates - partner):
@@ -1203,20 +1205,17 @@ class ShopifyOrderSync(models.Model):
             sale_order.action_confirm()
         if risk_hold:
             sale_order.picking_ids.write({"shopify_risk_hold": True})
-        if high_risk:
-            if not sale_order.activity_ids.filtered(
-                lambda activity: (
-                    activity.summary == self.env._("Shopify high-risk order")
-                )
-            ):
-                sale_order.activity_schedule(
-                    "mail.mail_activity_data_todo",
-                    summary=self.env._("Shopify high-risk order"),
-                    note=self.env._(
-                        "Review the Shopify risk assessment and release the "
-                        "risk hold before validating delivery."
-                    ),
-                )
+        if high_risk and not sale_order.activity_ids.filtered(
+            lambda activity: activity.summary == self.env._("Shopify high-risk order")
+        ):
+            sale_order.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary=self.env._("Shopify high-risk order"),
+                note=self.env._(
+                    "Review the Shopify risk assessment and release the "
+                    "risk hold before validating delivery."
+                ),
+            )
 
     def _should_confirm_shopify_order(self, instance, order_data, sale_order):
         eligible = (
@@ -1455,7 +1454,7 @@ class ShopifyOrderSync(models.Model):
         if restock:
             try:
                 self._create_restock_return(binding, refund)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 binding.instance_id._write_log(
                     entity="refund",
                     direction="import",

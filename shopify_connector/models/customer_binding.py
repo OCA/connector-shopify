@@ -162,7 +162,7 @@ class ShopifyCompany(models.Model):
         for binding in self:
             if (
                 binding.odoo_id.company_id != binding.instance_id.company_id
-                or not binding.odoo_id.is_company
+                or binding.odoo_id.commercial_partner_id != binding.odoo_id
             ):
                 raise ValidationError(
                     self.env._("The B2B company must belong to the instance company.")
@@ -366,7 +366,6 @@ class ShopifyInstanceCustomerConfig(models.Model):
                         {
                             "name": self.env._("Shopify Guest - %s", instance.name),
                             "company_id": instance.company_id.id,
-                            "is_company": False,
                             "customer_rank": 1,
                         }
                     )
@@ -389,7 +388,6 @@ class ShopifyInstanceCustomerConfig(models.Model):
                             "Shopify Guest - %s", (values.get("name") or self.name)
                         ),
                         "company_id": company.id,
-                        "is_company": False,
                         "customer_rank": 1,
                     }
                 )

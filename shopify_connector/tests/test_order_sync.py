@@ -866,7 +866,7 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
     def test_order_drift_imports_orders_updated_since_the_last_run(self):
         self.instance.write(
             {
-                "order_drift_since": datetime(2026, 10, 1, 8, 0),
+                "order_drift_since": datetime(2026, 10, 1, 8, 0),  # noqa: DTZ001
                 "draft_order_import_enabled": False,
             }
         )
@@ -893,12 +893,12 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
             ],
         )
         trap.assert_jobs_count(2, only=self.order_model._job_import_order_from_api)
-        self.assertEqual(self.instance.order_drift_since, datetime(2026, 11, 2, 9, 0))
+        self.assertEqual(self.instance.order_drift_since, datetime(2026, 11, 2, 9, 0))  # noqa: DTZ001
 
     def test_order_drift_skips_orders_already_imported_in_that_version(self):
         self.instance.write(
             {
-                "order_drift_since": datetime(2026, 10, 1, 8, 0),
+                "order_drift_since": datetime(2026, 10, 1, 8, 0),  # noqa: DTZ001
                 "draft_order_import_enabled": False,
             }
         )
@@ -907,7 +907,7 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
                 "instance_id": self.instance.id,
                 "shopify_id": "gid://shopify/Order/1001",
                 "order_name": "#1001",
-                "external_updated_at": datetime(2026, 11, 1, 10, 0),
+                "external_updated_at": datetime(2026, 11, 1, 10, 0),  # noqa: DTZ001
                 "state": "synced",
             }
         )
@@ -944,10 +944,10 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
             client.execute.call_args.args[1]["query"],
             "updated_at:>='2026-10-31T08:00:00Z'",
         )
-        self.assertEqual(self.instance.order_drift_since, datetime(2026, 11, 2, 9, 0))
+        self.assertEqual(self.instance.order_drift_since, datetime(2026, 11, 2, 9, 0))  # noqa: DTZ001
 
     def test_order_drift_keeps_its_date_when_shopify_fails(self):
-        since = datetime(2026, 10, 1, 8, 0)
+        since = datetime(2026, 10, 1, 8, 0)  # noqa: DTZ001
         self.instance.write(
             {"order_drift_since": since, "draft_order_import_enabled": False}
         )
@@ -965,7 +965,7 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
     def test_order_drift_also_imports_updated_draft_orders(self):
         self.instance.write(
             {
-                "order_drift_since": datetime(2026, 10, 1, 8, 0),
+                "order_drift_since": datetime(2026, 10, 1, 8, 0),  # noqa: DTZ001
                 "draft_order_import_enabled": True,
             }
         )

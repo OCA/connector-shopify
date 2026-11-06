@@ -1,7 +1,7 @@
 {
     "name": "Shopify Connector",
     "summary": "GraphQL-first Shopify commerce synchronization",
-    "version": "19.0.1.5.5",
+    "version": "20.0.1.0.0",
     "category": "Sales/Sales",
     "author": "Sawir Studio, Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/connector-shopify",
@@ -17,7 +17,6 @@
     ],
     "data": [
         "security/shopify_security.xml",
-        "security/ir.model.access.csv",
         "data/queue_job.xml",
         "data/ir_cron.xml",
         "views/shopify_instance_views.xml",
@@ -33,6 +32,7 @@
         "views/shopify_onboarding_views.xml",
         "views/shopify_operability_views.xml",
         "views/shopify_menus.xml",
+        "security/ir.access.csv",
     ],
     "external_dependencies": {"python": ["requests"]},
     "installable": True,

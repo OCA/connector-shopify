@@ -116,7 +116,7 @@ class ShopifyCollection(models.Model):
                 collection = self._upsert_shopify_collection(
                     instance_id, shopify_id, values
                 )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             if collection:
                 collection.write({"state": "error", "error_message": str(exc)})
             instance._write_log(

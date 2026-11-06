@@ -134,7 +134,7 @@
                                         type="object"
                                         string="Import All Products"
                                         class="oe_highlight"
-                                        icon="fa-download"
+                                        icon="download"
                                     />
                                 </group>
                             </group>
@@ -173,13 +173,13 @@
                                         type="object"
                                         string="Refresh Locations"
                                         class="oe_highlight"
-                                        icon="fa-download"
+                                        icon="download"
                                     />
                                     <button
                                         name="action_push_inventory"
                                         type="object"
                                         string="Reconcile Inventory"
-                                        icon="fa-refresh"
+                                        icon="refresh"
                                     />
                                 </group>
                             </group>
@@ -226,7 +226,7 @@
                                         type="object"
                                         string="Import All Customers"
                                         class="oe_highlight"
-                                        icon="fa-download"
+                                        icon="download"
                                     />
                                 </group>
                                 <group string="Shopify Plus B2B">
@@ -237,7 +237,7 @@
                                         type="object"
                                         string="Detect and Import B2B"
                                         invisible="not b2b_import_enabled"
-                                        icon="fa-building"
+                                        icon="business"
                                     />
                                 </group>
                             </group>

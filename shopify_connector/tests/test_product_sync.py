@@ -223,9 +223,7 @@ class TestShopifyProductSync(TransactionCase):
             product_set_variables["input"]["variants"][0]["optionValues"],
             [{"optionName": "Title", "name": "Default Title"}],
         )
-        database_uuid = (
-            self.env["ir.config_parameter"].sudo().get_param("database.uuid")
-        )
+        database_uuid = self.env["ir.config_parameter"].sudo().get_str("database.uuid")
         self.assertEqual(
             product_set_variables["identifier"],
             {
@@ -486,7 +484,30 @@ class TestShopifyProductSync(TransactionCase):
         self.assertFalse(red.odoo_id.image_variant_1920)
 
     def test_core_export_keeps_shopify_images_it_does_not_manage(self):
-        binding = self._import_image_product()
+        # Make the bindings directly instead of importing: with
+        # shopify_connector_website_sale the import also binds the shared image.
+        product = self.env["product.product"].create(
+            {"name": "Image Product", "company_id": self.instance.company_id.id}
+        )
+        binding = self.env["shopify.product.template"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/Product/790",
+                "odoo_id": product.product_tmpl_id.id,
+                "main_image_shopify_id": MAIN_IMAGE_ID,
+                "state": "synced",
+            }
+        )
+        self.env["shopify.product.variant"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/ProductVariant/791",
+                "template_binding_id": binding.id,
+                "odoo_id": product.id,
+                "image_shopify_id": VARIANT_IMAGE_ID,
+                "state": "synced",
+            }
+        )
         media = [
             {"id": image_id, "mediaContentType": "IMAGE"}
             for image_id in (MAIN_IMAGE_ID, VARIANT_IMAGE_ID, SHARED_IMAGE_ID)

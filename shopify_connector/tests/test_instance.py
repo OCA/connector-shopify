@@ -616,11 +616,11 @@ class TestShopifyInstanceClientCredentials(TransactionCase):
             self.enter_registry_test_mode(),
             self._patch_the_lock_timing_out(),
             self._patch_token_request() as request_token,
+            self.assertRaises(RetryableJobError),
         ):
-            with self.assertRaises(RetryableJobError):
-                self.instance.with_context(
-                    job_uuid="fbf1a5b0-shopify-token"
-                )._shopify_access_token()
+            self.instance.with_context(
+                job_uuid="fbf1a5b0-shopify-token"
+            )._shopify_access_token()
 
         request_token.assert_not_called()
         self.assertEqual(self.instance.access_token, "shpat-expired")
@@ -680,9 +680,11 @@ class TestShopifyInstanceClientCredentials(TransactionCase):
 
     def test_client_id_without_client_secret_is_a_functional_error(self):
         self.instance.webhook_secret = False
-        with self._patch_token_request() as request_token:
-            with self.assertRaisesRegex(UserError, "Client Secret"):
-                self.instance._shopify_client()
+        with (
+            self._patch_token_request() as request_token,
+            self.assertRaisesRegex(UserError, "Client Secret"),
+        ):
+            self.instance._shopify_client()
 
         request_token.assert_not_called()
 

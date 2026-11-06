@@ -315,12 +315,12 @@ class TestShopifyInboundFulfillment(TransactionCase):
         self.assertEqual(fulfillment.state, "synced")
         self.assertEqual(fulfillment.picking_id.picking_type_code, "outgoing")
         self.assertEqual(
-            sorted(
-                sale.picking_ids.filtered(
-                    lambda picking: picking.state == "done"
-                ).picking_type_id.mapped("sequence_code")
-            ),
-            ["OUT", "PACK", "PICK"],
+            sale.picking_ids.filtered(
+                lambda picking: picking.state == "done"
+            ).picking_type_id,
+            self.warehouse.pick_type_id
+            | self.warehouse.pack_type_id
+            | self.warehouse.out_type_id,
         )
         self.assertEqual(sale.order_line.qty_delivered, 1)
 
