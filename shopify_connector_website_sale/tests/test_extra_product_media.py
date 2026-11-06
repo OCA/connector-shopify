@@ -1,7 +1,7 @@
-import base64
 from unittest.mock import patch
 
 from odoo.tests.common import TransactionCase
+from odoo.tools import BinaryBytes
 
 from odoo.addons.shopify_connector.tests.common import (
     MAIN_IMAGE_ID,
@@ -60,12 +60,43 @@ class TestShopifyExtraProductMedia(TransactionCase):
         )
         self.assertFalse(self.binding_model._unmanaged_shopify_image_ids(binding, []))
 
+    def test_export_skips_main_and_variant_images_kept_in_extra_media(self):
+        binding = self._import()
+        self.env["ir.config_parameter"].set_str(
+            "web.base.url", "https://odoo.example.com"
+        )
+        template = binding.odoo_id
+        existing_media = [
+            {"id": media_id, "mediaContentType": "IMAGE"}
+            for media_id in (MAIN_IMAGE_ID, VARIANT_IMAGE_ID, SHARED_IMAGE_ID)
+        ]
+
+        files, targets = self.binding_model._product_files(
+            self.instance,
+            template,
+            binding,
+            template.product_variant_ids,
+            set(),
+            existing_media,
+        )
+
+        # eCommerce copies the main and variant images into the extra media;
+        # the export must not upload them a second time.
+        self.assertGreater(len(template.product_template_image_ids), 1)
+        self.assertEqual(
+            [item.get("id") for item in files],
+            [MAIN_IMAGE_ID, VARIANT_IMAGE_ID, SHARED_IMAGE_ID],
+        )
+        self.assertEqual(
+            [target["kind"] for target in targets], ["template", "variant", "extra"]
+        )
+
     def test_reimport_removes_main_image_from_extra_media(self):
         binding = self._import()
         extra_main = self.env["product.image"].create(
             {
                 "name": "Main image as extra media",
-                "image_1920": base64.b64encode(png_bytes("red")),
+                "image_1920": BinaryBytes(png_bytes("red")),
                 "product_tmpl_id": binding.odoo_id.id,
             }
         )

@@ -18,14 +18,12 @@ class ProductImage(models.Model):
 
     def write(self, values):
         result = super().write(values)
-        if {"image_1920", "name", "sequence"} & values.keys():
+        if {"image_1920", "name", "sequence", "attribute_value_ids"} & values.keys():
             self._queue_shopify_image_exports()
         return result
 
     def unlink(self):
-        targets = self.mapped("product_tmpl_id") | self.mapped(
-            "product_variant_id.product_tmpl_id"
-        )
+        targets = self.product_tmpl_id
         instances_by_template = []
         for template in targets:
             bindings = template.sudo().shopify_binding_ids.filtered(
@@ -46,7 +44,7 @@ class ProductImage(models.Model):
         if self.env.context.get("skip_shopify_export"):
             return
         for image in self:
-            template = image.product_tmpl_id or image.product_variant_id.product_tmpl_id
+            template = image.product_tmpl_id
             bindings = template.sudo().shopify_binding_ids.filtered(
                 lambda item: item.instance_id.company_id in self.env.companies
             )
