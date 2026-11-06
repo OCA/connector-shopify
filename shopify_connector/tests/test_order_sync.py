@@ -168,6 +168,99 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
             "gid://shopify/Customer/140",
         )
 
+    def _address(self, street, city="Veendam", zip_code="9641 AA", **values):
+        return {
+            "firstName": "Anna",
+            "lastName": "de Vries",
+            "company": None,
+            "address1": street,
+            "address2": None,
+            "city": city,
+            "provinceCode": None,
+            "countryCodeV2": "NL",
+            "zip": zip_code,
+            "phone": "+31612345678",
+            **values,
+        }
+
+    def test_order_imports_its_delivery_and_invoice_address(self):
+        payload = self._payload(
+            order_id=15,
+            shippingAddress=self._address("Leveringsweg 2"),
+            billingAddress=self._address("Factuurstraat 1", city="Groningen"),
+        )
+
+        binding_id = self.order_model._job_import_order(self.instance.id, payload)
+
+        order = self.order_model.browse(binding_id).odoo_id
+        shipping = order.partner_shipping_id
+        invoice = order.partner_invoice_id
+        self.assertEqual(shipping.parent_id, order.partner_id)
+        self.assertEqual(shipping.type, "delivery")
+        self.assertEqual(shipping.name, "Anna de Vries")
+        self.assertEqual(shipping.street, "Leveringsweg 2")
+        self.assertEqual(shipping.zip, "9641 AA")
+        self.assertEqual(shipping.city, "Veendam")
+        self.assertEqual(shipping.country_id.code, "NL")
+        self.assertEqual(shipping.phone, "+31612345678")
+        self.assertEqual(invoice.type, "invoice")
+        self.assertEqual(invoice.street, "Factuurstraat 1")
+        self.assertEqual(invoice.city, "Groningen")
+
+    def test_reimported_order_reuses_its_address_contacts(self):
+        values = {
+            "shippingAddress": self._address("Leveringsweg 2"),
+            "billingAddress": self._address("Leveringsweg 2"),
+        }
+        binding_id = self.order_model._job_import_order(
+            self.instance.id, self._payload(order_id=16, **values)
+        )
+        order = self.order_model.browse(binding_id).odoo_id
+        contacts = order.partner_id.child_ids
+
+        self.order_model._job_import_order(
+            self.instance.id,
+            self._payload(
+                order_id=16,
+                quantity=2,
+                total="20.00",
+                updatedAt="2026-01-11T10:00:00Z",
+                **values,
+            ),
+        )
+
+        self.assertEqual(order.partner_id.child_ids, contacts)
+        self.assertEqual(len(contacts), 1)
+        self.assertEqual(order.partner_shipping_id, contacts)
+        self.assertEqual(order.partner_invoice_id, contacts)
+
+    def test_shipping_address_edited_in_shopify_reaches_the_order(self):
+        binding_id = self.order_model._job_import_order(
+            self.instance.id,
+            self._payload(order_id=17, shippingAddress=self._address("Oud 1")),
+        )
+        order = self.order_model.browse(binding_id).odoo_id
+
+        self.order_model._job_import_order(
+            self.instance.id,
+            self._payload(
+                order_id=17,
+                updatedAt="2026-01-11T10:00:00Z",
+                shippingAddress=self._address("Nieuw 9"),
+            ),
+        )
+
+        self.assertEqual(order.partner_shipping_id.street, "Nieuw 9")
+
+    def test_order_without_address_ships_to_the_customer(self):
+        binding_id = self.order_model._job_import_order(
+            self.instance.id, self._payload(order_id=18)
+        )
+
+        order = self.order_model.browse(binding_id).odoo_id
+        self.assertEqual(order.partner_shipping_id, order.partner_id)
+        self.assertEqual(order.partner_invoice_id, order.partner_id)
+
     def test_total_verification_failure_leaves_no_sale_order(self):
         before = self.env["sale.order"].search_count([])
 
