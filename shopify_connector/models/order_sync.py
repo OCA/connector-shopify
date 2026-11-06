@@ -27,6 +27,7 @@ from ..graphql.order import (
 from ..lib.bulk import ShopifyBulkRunner
 from ..lib.client import ShopifyError
 from ..lib.order import (
+    apply_draft_order_discount,
     decimal_amount,
     line_diffs,
     normalize_order_payload,
@@ -361,6 +362,10 @@ class ShopifyOrderSync(models.Model):
             if payload_normalized
             else normalize_order_payload(payload, is_draft=is_draft)
         )
+        if order_data.get("order_discount"):
+            order_data = apply_draft_order_discount(
+                order_data, self._currency_quanta(order_data)
+            )
         if order_data["is_draft"] and not instance.draft_order_import_enabled:
             return False
         digest = payload_digest(order_data)
@@ -727,6 +732,20 @@ class ShopifyOrderSync(models.Model):
                     }
                 )
         return result
+
+    def _currency_quanta(self, order_data):
+        """Return the smallest unit of the shop and presentment currencies."""
+        quanta = {}
+        for side in ("shop", "presentment"):
+            currency = (
+                self.env["res.currency"]
+                .with_context(active_test=False)
+                .search([("name", "=", order_data["total"][side]["currency"])], limit=1)
+            )
+            quanta[side] = (
+                Decimal(str(currency.rounding)) if currency else Decimal("0.01")
+            )
+        return quanta
 
     def _currency(self, instance, order_data):
         side = (

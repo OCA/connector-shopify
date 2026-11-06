@@ -240,6 +240,10 @@ DRAFT_ORDER_FIELDS = f"""
     billingAddress {{ countryCodeV2 }}
     order {{ id }}
     discountCodes
+    appliedDiscount {{
+      title
+      amountSet {{ {MONEY_FIELDS} }}
+    }}
     subtotalPriceSet {{ {MONEY_FIELDS} }}
     totalDiscountsSet {{ {MONEY_FIELDS} }}
     totalShippingPriceSet {{ {MONEY_FIELDS} }}

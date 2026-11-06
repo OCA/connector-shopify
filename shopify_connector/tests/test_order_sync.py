@@ -378,6 +378,27 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
             },
         }
 
+    def test_draft_order_discount_reaches_the_sale_order(self):
+        payload = self._draft_payload(draft_id=91, order_id=91)
+        payload.update(
+            {
+                "status": "OPEN",
+                "order": None,
+                "appliedDiscount": {"title": "Test", "amountSet": self._bag("1.00")},
+                "subtotalPriceSet": self._bag("9.00"),
+                "totalDiscountsSet": self._bag("1.00"),
+                "totalPriceSet": self._bag("9.00"),
+            }
+        )
+
+        binding = self.order_model.browse(
+            self.order_model._job_import_order(self.instance.id, payload, is_draft=True)
+        )
+
+        self.assertEqual(binding.state, "synced", binding.error_message)
+        self.assertEqual(binding.odoo_id.amount_total, 9.0)
+        self.assertEqual(binding.odoo_id.order_line.discount, 10.0)
+
     def test_completed_draft_links_real_order_without_duplicate_sale(self):
         draft = self._draft_payload()
         before = self.env["sale.order"].search_count([])
