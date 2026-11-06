@@ -1,6 +1,5 @@
 # pylint: disable=consider-merging-classes-inherited
 
-import base64
 import hashlib
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -10,6 +9,7 @@ import requests
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 from odoo.fields import Command
+from odoo.tools import BinaryBytes
 
 from ..graphql.product import (
     COLLECTIONS_PAGE_QUERY,
@@ -1029,7 +1029,7 @@ class ShopifyProductTemplateSync(models.Model):
             template.image_1920
         ):
             return
-        template.image_1920 = base64.b64encode(self._download_image(image["url"]))
+        template.image_1920 = BinaryBytes(self._download_image(image["url"]))
         template_binding.write(
             {
                 "main_image_shopify_id": image["id"],
@@ -1050,9 +1050,7 @@ class ShopifyProductTemplateSync(models.Model):
             variant.image_variant_1920
         ):
             return
-        variant.image_variant_1920 = base64.b64encode(
-            self._download_image(image["url"])
-        )
+        variant.image_variant_1920 = BinaryBytes(self._download_image(image["url"]))
         variant_binding.write(
             {
                 "image_shopify_id": image["id"],
@@ -1456,9 +1454,7 @@ class ShopifyProductTemplateSync(models.Model):
 
     @api.model
     def _product_upsert_identifier(self, instance, template):
-        database_uuid = (
-            self.env["ir.config_parameter"].sudo().get_param("database.uuid")
-        )
+        database_uuid = self.env["ir.config_parameter"].sudo().get_str("database.uuid")
         value = f"{database_uuid or self.env.cr.dbname}:{instance.id}:{template.id}"
         return {
             "customId": {
@@ -1522,7 +1518,7 @@ class ShopifyProductTemplateSync(models.Model):
             for media in existing_media
             if media.get("alt") and media.get("id")
         }
-        base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url")
+        base_url = self.env["ir.config_parameter"].sudo().get_str("web.base.url")
         if not base_url:
             raise UserError(self.env._("Configure the Odoo web base URL first."))
 
@@ -1647,9 +1643,7 @@ class ShopifyProductTemplateSync(models.Model):
 
     @api.model
     def _binary_checksum(self, value):
-        encoded = value.encode() if isinstance(value, str) else value
-        raw = base64.b64decode(encoded)
-        return hashlib.sha256(raw).hexdigest()
+        return hashlib.sha256(value.content).hexdigest()
 
     def _update_export_bindings(
         self, instance, template, binding, product, file_targets

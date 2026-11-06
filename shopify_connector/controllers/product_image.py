@@ -1,4 +1,3 @@
-import base64
 import hashlib
 
 from werkzeug.wrappers import Response
@@ -50,10 +49,10 @@ class ShopifyProductImageController(http.Controller):
         record = request.env[model_name].sudo().browse(record_id).exists()
         if not record or not self._record_company_matches(record, instance):
             return Response(status=404)
-        encoded = record.image_1920
-        if not encoded:
+        image = record.image_1920
+        if not image:
             return Response(status=404)
-        raw = base64.b64decode(encoded)
+        raw = image.content
         if hashlib.sha256(raw).hexdigest() != checksum:
             return Response(status=404)
         response = Response(

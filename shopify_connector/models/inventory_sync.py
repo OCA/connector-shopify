@@ -473,7 +473,7 @@ class ShopifyProductVariantInventorySync(models.Model):
     ):
         self.ensure_one()
         database_uuid = (
-            self.env["ir.config_parameter"].sudo().get_param("database.uuid")
+            self.env["ir.config_parameter"].sudo().get_str("database.uuid")
             or self.env.cr.dbname
         )
         reference = (

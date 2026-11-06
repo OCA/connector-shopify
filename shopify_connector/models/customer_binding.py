@@ -162,7 +162,7 @@ class ShopifyCompany(models.Model):
         for binding in self:
             if (
                 binding.odoo_id.company_id != binding.instance_id.company_id
-                or not binding.odoo_id.is_company
+                or binding.odoo_id.commercial_partner_id != binding.odoo_id
             ):
                 raise ValidationError(
                     self.env._("The B2B company must belong to the instance company.")

@@ -10,7 +10,7 @@
                     name="action_open_shopify_export_wizard"
                     type="object"
                     class="oe_stat_button"
-                    icon="fa-upload"
+                    icon="upload"
                     string="Export to Shopify"
                     groups="shopify_connector.group_shopify_manager"
                 />

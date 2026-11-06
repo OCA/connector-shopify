@@ -221,9 +221,7 @@ class TestShopifyProductSync(TransactionCase):
             product_set_variables["input"]["variants"][0]["optionValues"],
             [{"optionName": "Title", "name": "Default Title"}],
         )
-        database_uuid = (
-            self.env["ir.config_parameter"].sudo().get_param("database.uuid")
-        )
+        database_uuid = self.env["ir.config_parameter"].sudo().get_str("database.uuid")
         self.assertEqual(
             product_set_variables["identifier"],
             {
@@ -484,6 +482,12 @@ class TestShopifyProductSync(TransactionCase):
         self.assertFalse(red.odoo_id.image_variant_1920)
 
     def test_core_export_keeps_shopify_images_it_does_not_manage(self):
+        if "image_binding_ids" in self.env["shopify.product.template"]._fields:
+            # Tests run post_install since 20.0: with shopify_connector_website_sale,
+            # Odoo manages every image.
+            self.skipTest(
+                "Odoo manages every image with shopify_connector_website_sale"
+            )
         binding = self._import_image_product()
         media = [
             {"id": image_id, "mediaContentType": "IMAGE"}

@@ -28,7 +28,7 @@
                         name="action_refresh"
                         type="object"
                         string="Refresh"
-                        icon="fa-refresh"
+                        icon="refresh"
                     />
                     <button
                         name="action_release_hold"
@@ -218,7 +218,7 @@
                     type="object"
                     string="Refresh Fulfillment Orders"
                     invisible="is_draft"
-                    icon="fa-refresh"
+                    icon="refresh"
                 />
             </xpath>
             <xpath expr="//notebook" position="inside">

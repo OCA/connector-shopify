@@ -558,7 +558,7 @@ class ShopifyInstance(models.Model):
 
     def _webhook_callback_url(self):
         self.ensure_one()
-        base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url")
+        base_url = self.env["ir.config_parameter"].sudo().get_str("web.base.url")
         if not base_url:
             raise UserError(self.env._("Configure the Odoo web base URL first."))
         return f"{base_url.rstrip('/')}/shopify/webhook/{self.id}"
