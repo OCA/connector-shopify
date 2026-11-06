@@ -191,9 +191,7 @@ class ShopifyProductTemplate(models.Model):
     def _update_extra_image_binding(self, instance, binding, target, payload):
         result = super()._update_extra_image_binding(instance, binding, target, payload)
         target_variant_bindings = binding.variant_binding_ids.filtered(
-            lambda item, target=target: (
-                item.odoo_id.id in target.get("variant_ids", [])
-            )
+            lambda item, target=target: item.odoo_id.id in target.get("variant_ids", [])
         )
         image_binding = self.env["shopify.product.image"].search(
             [
