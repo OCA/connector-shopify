@@ -575,6 +575,12 @@ class ShopifyOrderSync(models.Model):
         pricelist = self._pricelist(instance, currency)
         values = {
             "partner_id": partner.id,
+            "partner_shipping_id": self._order_address_partner(
+                partner, order_data.get("shipping_address"), "delivery"
+            ).id,
+            "partner_invoice_id": self._order_address_partner(
+                partner, order_data.get("billing_address"), "invoice"
+            ).id,
             "company_id": instance.company_id.id,
             "pricelist_id": pricelist.id,
             "currency_id": currency.id,
@@ -607,6 +613,7 @@ class ShopifyOrderSync(models.Model):
                 # orders even when their values have not changed.
                 immutable_fields = {
                     "partner_id",
+                    "partner_invoice_id",
                     "company_id",
                     "pricelist_id",
                     "currency_id",
@@ -629,6 +636,66 @@ class ShopifyOrderSync(models.Model):
         self._apply_lines(binding, sale_order, instance, order_data)
         self._verify_total(sale_order, currency, instance, order_data)
         return sale_order
+
+    def _order_address_partner(self, partner, address, address_type):
+        """Return the contact of a Shopify order address.
+
+        An existing contact of the customer with the same address is reused;
+        otherwise a delivery or invoice contact is created under the customer.
+        Without an address the customer itself is used.
+        """
+        if not address or not any(address[key] for key in ("address1", "city", "zip")):
+            return partner
+        values = self._order_address_values(partner, address, address_type)
+        for candidate in partner | partner.child_ids:
+            if self._is_same_order_address(candidate, values):
+                return candidate
+        return (
+            self.env["res.partner"]
+            .with_context(shopify_customer_import=True)
+            .create(values)
+        )
+
+    def _order_address_values(self, partner, address, address_type):
+        country = self.env["res.country"]
+        if address["country"]:
+            country = country.search([("code", "=", address["country"])], limit=1)
+        state = self.env["res.country.state"]
+        if country and address["province"]:
+            state = state.search(
+                [
+                    ("country_id", "=", country.id),
+                    "|",
+                    ("code", "=ilike", address["province"]),
+                    ("name", "=ilike", address["province"]),
+                ],
+                limit=1,
+            )
+        name = " ".join(
+            part for part in (address["first_name"], address["last_name"]) if part
+        )
+        return {
+            "parent_id": partner.id,
+            "company_id": partner.company_id.id,
+            "type": address_type,
+            "name": name or address["company"] or partner.name,
+            "street": address["address1"] or False,
+            "street2": address["address2"] or False,
+            "city": address["city"] or False,
+            "state_id": state.id or False,
+            "country_id": country.id or False,
+            "zip": address["zip"] or False,
+            "phone": address["phone"] or False,
+        }
+
+    def _is_same_order_address(self, partner, values):
+        def text(value):
+            return (value or "").strip().casefold()
+
+        return all(
+            text(partner[field]) == text(values[field])
+            for field in ("name", "street", "street2", "city", "zip")
+        ) and partner.country_id.id == (values["country_id"] or False)
 
     def _shopify_order_extra_values(self, instance, order_data):
         """Allow optional modules to supply sale-order routing values."""
