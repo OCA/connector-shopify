@@ -53,6 +53,41 @@ class TestShopifyLibOrder(TransactionCase):
         assert graphql["number"] == "1001"
         assert rest["number"] == "1001"
 
+    def test_order_addresses_read_graphql_and_rest_shapes(self):
+        graphql = normalize_order_payload(
+            {
+                "id": "gid://shopify/Order/1",
+                "shippingAddress": {
+                    "firstName": "Anna",
+                    "address1": "Leveringsweg 2",
+                    "zip": "9641 AA",
+                    "city": "Veendam",
+                    "provinceCode": "GR",
+                    "countryCodeV2": "nl",
+                },
+            }
+        )
+        rest = normalize_order_payload(
+            {
+                "id": 1,
+                "billing_address": {
+                    "first_name": "Anna",
+                    "address1": "Factuurstraat 1",
+                    "city": "Groningen",
+                    "province_code": "GR",
+                    "country_code": "NL",
+                },
+            }
+        )
+        assert graphql["shipping_address"]["address1"] == "Leveringsweg 2"
+        assert graphql["shipping_address"]["country"] == "NL"
+        assert graphql["shipping_address"]["province"] == "GR"
+        assert graphql["billing_address"] is None
+        assert rest["billing_address"]["first_name"] == "Anna"
+        assert rest["billing_address"]["city"] == "Groningen"
+        assert rest["shipping_address"] is None
+        assert "id" not in rest["billing_address"]
+
     def test_rest_webhook_uses_current_quantity_and_exact_discounted_total(self):
         order = normalize_order_payload(
             {
