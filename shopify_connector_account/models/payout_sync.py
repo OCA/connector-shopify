@@ -122,7 +122,7 @@ class ShopifyInstancePayoutSync(models.Model):
             after = page_info.get("endCursor")
 
     def _job_import_payouts(self, date_from=False, date_to=False):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return []
@@ -581,7 +581,7 @@ class ShopifyPayoutEntry(models.Model):
         }
 
     def _job_generate_entry(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         instance = self.instance_id
         if not instance.active:
