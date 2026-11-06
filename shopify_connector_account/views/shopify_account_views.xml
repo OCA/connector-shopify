@@ -208,7 +208,7 @@
                                 type="object"
                                 string="Import Payouts and Disputes"
                                 class="oe_highlight"
-                                icon="fa-download"
+                                icon="download"
                             />
                         </group>
                     </group>

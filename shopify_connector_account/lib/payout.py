@@ -63,7 +63,7 @@ def normalize_payout(payload: dict[str, Any]) -> dict[str, Any]:
         lowered = str(name).lower()
         if lowered.endswith("gross") or lowered == "usdcrebatecreditamount":
             gross += amount
-        elif lowered.endswith("fee") or lowered.endswith("fees"):
+        elif lowered.endswith(("fee", "fees")):
             fees += amount
     return {
         "id": str(payload.get("id") or ""),
