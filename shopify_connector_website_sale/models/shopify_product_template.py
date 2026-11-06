@@ -1,8 +1,8 @@
-import base64
 import hashlib
 
 from odoo import fields, models
 from odoo.fields import Command
+from odoo.tools import BinaryBytes
 
 
 class ShopifyProductTemplate(models.Model):
@@ -68,23 +68,27 @@ class ShopifyProductTemplate(models.Model):
                     product=template_binding.odoo_id.name,
                     position=position,
                 ),
-                "image_1920": base64.b64encode(image_bytes),
+                "image_1920": BinaryBytes(image_bytes),
                 "sequence": position * 10,
             }
             variant_bindings = variants_by_media.get(
                 payload["id"], self.env["shopify.product.variant"]
             )
             variant_binding = variant_bindings[:1]
-            if len(variant_bindings) == 1:
-                image_values["product_variant_id"] = variant_binding.odoo_id.id
-                image_values["product_tmpl_id"] = False
-            else:
-                image_values["product_tmpl_id"] = template_binding.odoo_id.id
-                image_values["product_variant_id"] = False
-            if image_binding:
-                image_binding.odoo_id.with_context(skip_shopify_export=True).write(
-                    image_values
+            # An image of a single variant is a template image limited to the
+            # attribute values of that variant.
+            image_values["product_tmpl_id"] = template_binding.odoo_id.id
+            image_values["attribute_value_ids"] = [
+                Command.set(
+                    variant_binding.odoo_id.product_template_attribute_value_ids.ids
+                    if len(variant_bindings) == 1
+                    else []
                 )
+            ]
+            if image_binding:
+                image_binding.odoo_id.with_context(
+                    skip_shopify_export=True, skip_update_main_image=True
+                ).write(image_values)
                 image_binding.write(
                     {
                         "source_url": payload["url"],
@@ -101,7 +105,7 @@ class ShopifyProductTemplate(models.Model):
             else:
                 image = (
                     self.env["product.image"]
-                    .with_context(skip_shopify_export=True)
+                    .with_context(skip_shopify_export=True, skip_update_main_image=True)
                     .create(image_values)
                 )
                 self.env["shopify.product.image"].create(
@@ -140,14 +144,32 @@ class ShopifyProductTemplate(models.Model):
             if binding
             else {}
         )
-        extra_images = (
-            template.product_template_image_ids | variants.product_variant_image_ids
+        extra_images = template.product_template_image_ids.filtered(
+            lambda image: (
+                not image.has_attribute_value or image in variants.variant_image_ids
+            )
         )
+        # eCommerce keeps the main image and the variant images in the extra
+        # media too; those are exported as the main and variant media already.
+        main_checksums = {
+            self._binary_checksum(record[field])
+            for record, field in [(template, "image_1920")]
+            + [(variant, "image_variant_1920") for variant in variants]
+            if record[field]
+        }
         for image in extra_images:
             if not image.image_1920:
                 continue
+            image_variants = variants.filtered(
+                lambda variant, image=image: image in variant.variant_image_ids
+            )
+            image_variant = (
+                image_variants if len(image_variants) == 1 else variants.browse()
+            )
             checksum = self._binary_checksum(image.image_1920)
             image_binding = image_bindings.get(image.id)
+            if not image_binding and checksum in main_checksums:
+                continue
             media_id = image_binding.shopify_id if image_binding else False
             unchanged = image_binding and image_binding.image_checksum == checksum
             export_alt = self._export_image_alt(image.name, image, checksum)
@@ -170,11 +192,11 @@ class ShopifyProductTemplate(models.Model):
                 {
                     "kind": "extra",
                     "record": image,
-                    "variant_id": image.product_variant_id.id,
+                    "variant_id": image_variant.id,
                     "variant_ids": (
                         image_binding.variant_binding_ids.odoo_id.ids
                         if image_binding and image_binding.variant_binding_ids
-                        else image.product_variant_id.ids
+                        else image_variant.ids
                     ),
                     "checksum": checksum,
                     "media_id": matched_media_id,

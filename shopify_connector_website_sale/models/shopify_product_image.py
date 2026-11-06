@@ -66,11 +66,7 @@ class ShopifyProductImage(models.Model):
                 raise ValidationError(
                     self.env._("The image variant must belong to the bound product.")
                 )
-            image_template = (
-                binding.odoo_id.product_tmpl_id
-                or binding.odoo_id.product_variant_id.product_tmpl_id
-            )
-            if image_template != binding.template_binding_id.odoo_id:
+            if binding.odoo_id.product_tmpl_id != binding.template_binding_id.odoo_id:
                 raise ValidationError(
                     self.env._("The Odoo image must belong to the bound product.")
                 )
