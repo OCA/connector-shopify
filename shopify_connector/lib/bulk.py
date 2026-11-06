@@ -19,7 +19,7 @@ class ShopifyBulkError(Exception):
 class ShopifyBulkRunner:
     """Submit, poll, and download a Shopify GraphQL bulk query."""
 
-    PENDING_STATUSES = {"CREATED", "RUNNING", "CANCELING"}
+    PENDING_STATUSES = frozenset({"CREATED", "RUNNING", "CANCELING"})
 
     def __init__(
         self,

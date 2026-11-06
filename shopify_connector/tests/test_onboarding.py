@@ -86,9 +86,11 @@ class TestShopifyOnboardingCredentials(TransactionCase):
     def test_onboarding_without_authentication_credentials_is_refused(self):
         wizard = self._create_wizard()
 
-        with self._patch_token_request() as request_token:
-            with self.assertRaises(UserError):
-                wizard.action_test_connection()
+        with (
+            self._patch_token_request() as request_token,
+            self.assertRaises(UserError),
+        ):
+            wizard.action_test_connection()
 
         request_token.assert_not_called()
         self.assertFalse(wizard.instance_id)

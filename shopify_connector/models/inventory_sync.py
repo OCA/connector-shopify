@@ -50,7 +50,7 @@ class ShopifyInstanceInventorySync(models.Model):
         )
 
     def _job_import_locations(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return 0
@@ -185,7 +185,7 @@ class ShopifyInstanceInventorySync(models.Model):
             )
 
     def _job_reconcile_inventory(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return 0
@@ -348,7 +348,7 @@ class ShopifyProductVariantInventorySync(models.Model):
         return quantity
 
     def _job_push_inventory_level(self, location_binding_id):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.instance_id.active:
             return False

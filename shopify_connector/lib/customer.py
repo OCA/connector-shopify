@@ -28,8 +28,8 @@ def normalize_phone(
     raw = str(value or "").strip()
     if not raw:
         return ""
-    raw = re.split(r"(?:ext\.?|extension|x)\s*\d+\s*$", raw, flags=re.I)[0]
-    explicit_international = raw.startswith("+") or raw.startswith("00")
+    raw = re.split(r"(?:ext\.?|extension|x)\s*\d+\s*$", raw, flags=re.IGNORECASE)[0]
+    explicit_international = raw.startswith(("+", "00"))
     digits = re.sub(r"\D", "", raw)
     if raw.startswith("00"):
         digits = digits[2:]

@@ -20,7 +20,7 @@ def quantity_for_basis(
     if basis not in VALID_QUANTITY_BASES:
         raise ValueError(f"Unsupported inventory quantity basis: {basis}")
     value = free_qty if basis == "free_qty" else qty_available
-    return int(Decimal(str(value or 0)).quantize(Decimal("1"), ROUND_HALF_UP))
+    return int(Decimal(str(value or 0)).quantize(Decimal(1), ROUND_HALF_UP))
 
 
 def apply_negative_policy(quantity: int, allow_negative: bool) -> tuple[int, bool]:

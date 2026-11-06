@@ -67,8 +67,7 @@ class ShopifyClient:
     def _normalise_shop_url(shop_url: str) -> str:
         value = (shop_url or "").strip().lower()
         for prefix in ("https://", "http://"):
-            if value.startswith(prefix):
-                value = value[len(prefix) :]
+            value = value.removeprefix(prefix)
         return value.rstrip("/")
 
     def execute(

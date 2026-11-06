@@ -90,7 +90,7 @@ class ShopifyInstanceProductSync(models.Model):
         }
 
     def _job_fetch_products_bulk(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return 0
@@ -134,7 +134,7 @@ class ShopifyInstanceProductSync(models.Model):
                     ),
                 )._job_reconcile_missing_product(self.id, binding.shopify_id)
             self._queue_collection_imports()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             self._write_log(
                 entity="product",
                 direction="import",
@@ -224,7 +224,7 @@ class ShopifyProductTemplateSync(models.Model):
         payload_normalized=False,
         snapshot_started_at=None,
     ):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -336,7 +336,7 @@ class ShopifyProductTemplateSync(models.Model):
                     seed_all=seed_all,
                     complete_snapshot=complete_snapshot,
                 )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             binding.write({"state": "error", "error_message": str(exc)})
             instance._write_log(
                 entity="product",
@@ -393,9 +393,7 @@ class ShopifyProductTemplateSync(models.Model):
                     self._export_price(instance, variant)
                 ):
                     return True
-        if owners["images"] == "odoo" and self._has_image_drift(binding, product):
-            return True
-        return False
+        return owners["images"] == "odoo" and self._has_image_drift(binding, product)
 
     def _tracked_image_ids(self, binding):
         return {
@@ -443,7 +441,7 @@ class ShopifyProductTemplateSync(models.Model):
 
     @api.model
     def _job_import_product_from_api(self, instance_id, shopify_id):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -453,7 +451,7 @@ class ShopifyProductTemplateSync(models.Model):
                 shopify_id,
                 missing_ok=True,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             binding = self.search(
                 [
                     ("instance_id", "=", instance_id),
@@ -521,11 +519,11 @@ class ShopifyProductTemplateSync(models.Model):
                     key: value for key, value in page.items() if key not in accumulated
                 }
             has_next = False
-            for connection_name in accumulated:
+            for connection_name, nodes in accumulated.items():
                 connection = page.get(connection_name) or {}
                 for node in connection.get("nodes", []):
                     if node.get("id"):
-                        accumulated[connection_name][node["id"]] = node
+                        nodes[node["id"]] = node
                 page_info = connection.get("pageInfo") or {}
                 if page_info.get("hasNextPage"):
                     has_next = True
@@ -939,9 +937,7 @@ class ShopifyProductTemplateSync(models.Model):
             combination = self.env["product.template.attribute.value"]
             for option in selected_options:
                 line = template.attribute_line_ids.filtered(
-                    lambda item, option=option: (
-                        item.attribute_id.name == option["name"]
-                    )
+                    lambda item, option=option: item.attribute_id.name == option["name"]
                 )[:1]
                 template_value = line.product_template_value_ids.filtered(
                     lambda item, option=option: item.name == option["value"]
@@ -1075,7 +1071,7 @@ class ShopifyProductTemplateSync(models.Model):
 
     @api.model
     def _job_archive_deleted_product(self, instance_id, shopify_id):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         binding = self.search(
             [
@@ -1108,7 +1104,7 @@ class ShopifyProductTemplateSync(models.Model):
 
     @api.model
     def _job_reconcile_missing_product(self, instance_id, shopify_id):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -1118,7 +1114,7 @@ class ShopifyProductTemplateSync(models.Model):
                 shopify_id,
                 missing_ok=True,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             instance._write_log(
                 entity="product",
                 direction="import",
@@ -1153,10 +1149,10 @@ class ShopifyProductTemplateSync(models.Model):
 
     @api.model
     def _job_export_product(self, instance_id, template_id):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if instance:
-            self = self.with_company(instance.company_id)
+            self = self.with_company(instance.company_id)  # noqa: PLW0642
             instance = self.env["shopify.instance"].browse(instance_id)
         template = (
             self.env["product.template"]
@@ -1655,7 +1651,7 @@ class ShopifyProductTemplateSync(models.Model):
         raw = base64.b64decode(encoded)
         return hashlib.sha256(raw).hexdigest()
 
-    def _update_export_bindings(  # noqa: C901
+    def _update_export_bindings(
         self, instance, template, binding, product, file_targets
     ):
         normalized = normalize_product_payload(product)

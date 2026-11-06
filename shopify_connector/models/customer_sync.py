@@ -77,7 +77,7 @@ class ShopifyInstanceCustomerSync(models.Model):
         )
 
     def _job_fetch_customers_bulk(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return 0
@@ -122,7 +122,7 @@ class ShopifyInstanceCustomerSync(models.Model):
         )
 
     def _job_import_b2b(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active or not self.b2b_import_enabled:
             return 0
@@ -243,7 +243,7 @@ class ShopifyCustomerSync(models.Model):
         payload_normalized=False,
         complete_snapshot=True,
     ):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -297,7 +297,7 @@ class ShopifyCustomerSync(models.Model):
                     seed_all=binding.initial_seed_pending,
                     complete_snapshot=complete_snapshot,
                 )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             binding.write({"state": "error", "error_message": str(exc)})
             instance._write_log(
                 entity="customer",
@@ -330,7 +330,7 @@ class ShopifyCustomerSync(models.Model):
 
     @api.model
     def _job_import_customer_from_api(self, instance_id, customer_id):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -588,7 +588,7 @@ class ShopifyCustomerSync(models.Model):
             )._job_export_customer()
 
     def _job_export_customer(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.instance_id.active or not self.instance_id.customer_export_enabled:
             return False

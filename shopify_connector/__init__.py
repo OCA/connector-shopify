@@ -1,5 +1,5 @@
 try:
-    import odoo  # noqa: F401
+    import odoo
 except ModuleNotFoundError as exc:
     if exc.name != "odoo":
         raise

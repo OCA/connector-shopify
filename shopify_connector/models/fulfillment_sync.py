@@ -107,7 +107,7 @@ class ShopifyOrderFulfillmentSync(models.Model):
         return True
 
     def _job_refresh_fulfillment_orders(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.instance_id.active or self.is_draft:
             return []
@@ -386,7 +386,7 @@ class ShopifyOrderFulfillmentSync(models.Model):
         )
 
     def _job_push_picking_fulfillment(self, picking_id):  # noqa: C901
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.instance_id.active:
             return False
@@ -798,7 +798,7 @@ class ShopifyFulfillmentOrderActions(models.Model):
     _inherit = "shopify.fulfillment.order"
 
     def _job_release_hold(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.instance_id.active:
             return False
@@ -835,7 +835,7 @@ class ShopifyFulfillmentActions(models.Model):
     _inherit = "shopify.fulfillment"
 
     def _job_cancel_shopify(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.instance_id.active:
             return False
@@ -978,7 +978,7 @@ class ShopifyExternalFulfillmentImport(models.Model):
     def _job_import_from_shopify(
         self, instance_id, fulfillment_id, webhook_payload=None
     ):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -1352,7 +1352,7 @@ class ShopifyExternalFulfillmentImport(models.Model):
             return (
                 not advanced,
                 not at_location,
-                move.picking_id.scheduled_date or datetime.max,
+                move.picking_id.scheduled_date or datetime.max,  # noqa: DTZ901
                 move.picking_id.id,
                 move.id,
             )

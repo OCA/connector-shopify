@@ -129,7 +129,7 @@ class ShopifyInstanceOrderSync(models.Model):
             )
 
     def _job_fetch_orders_bulk(self, date_from=False, date_to=False):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return 0
@@ -145,7 +145,7 @@ class ShopifyInstanceOrderSync(models.Model):
         return self._queue_order_imports(orders, date_from, date_to)
 
     def _job_sync_updated_orders(self):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         self.ensure_one()
         if not self.active:
             return 0
@@ -352,7 +352,7 @@ class ShopifyOrderSync(models.Model):
         payload_normalized=False,
         is_draft=False,
     ):
-        self = self.sudo()
+        self = self.sudo()  # noqa: PLW0642
         instance = self.env["shopify.instance"].browse(instance_id).exists()
         if not instance or not instance.active:
             return False
@@ -481,7 +481,7 @@ class ShopifyOrderSync(models.Model):
                 self._write_success(binding, sale_order, order_data, digest)
         except (RetryableJobError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
             raise
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             values = {
                 "state": "error",
                 "error_message": str(exc),
@@ -825,9 +825,9 @@ class ShopifyOrderSync(models.Model):
             ) * quantity - decimal_amount(selected_total["amount"])
             original_total = decimal_amount(selected_unit["amount"]) * quantity
             discount_percent = (
-                discount_amount * Decimal("100") / original_total
+                discount_amount * Decimal(100) / original_total
                 if original_total
-                else Decimal("0")
+                else Decimal(0)
             )
             line_values = {
                 "order_id": sale_order.id,
@@ -918,9 +918,9 @@ class ShopifyOrderSync(models.Model):
             original_amount = decimal_amount(selected_original["amount"])
             discounted_amount = decimal_amount(selected["amount"])
             discount_percent = (
-                (original_amount - discounted_amount) * Decimal("100") / original_amount
+                (original_amount - discounted_amount) * Decimal(100) / original_amount
                 if original_amount
-                else Decimal("0")
+                else Decimal(0)
             )
             taxes = self._mapped_taxes(
                 instance,
@@ -1051,7 +1051,7 @@ class ShopifyOrderSync(models.Model):
         expected = self._shopify_expected_order_total(instance, order_data)
         difference = _exact_difference(sale_order.amount_total, expected)
         rounding = Decimal(str(currency.rounding))
-        if difference >= rounding / Decimal("2"):
+        if difference >= rounding / Decimal(2):
             raise ShopifyOrderImportError(
                 self.env._(
                     "Order total mismatch: Odoo %(odoo)s, Shopify %(shopify)s, "
@@ -1093,19 +1093,17 @@ class ShopifyOrderSync(models.Model):
             sale_order.action_confirm()
         if risk_hold:
             sale_order.picking_ids.write({"shopify_risk_hold": True})
-        if high_risk:
-            if not sale_order.activity_ids.filtered(
-                lambda activity: activity.summary
-                == self.env._("Shopify high-risk order")
-            ):
-                sale_order.activity_schedule(
-                    "mail.mail_activity_data_todo",
-                    summary=self.env._("Shopify high-risk order"),
-                    note=self.env._(
-                        "Review the Shopify risk assessment and release the "
-                        "risk hold before validating delivery."
-                    ),
-                )
+        if high_risk and not sale_order.activity_ids.filtered(
+            lambda activity: activity.summary == self.env._("Shopify high-risk order")
+        ):
+            sale_order.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary=self.env._("Shopify high-risk order"),
+                note=self.env._(
+                    "Review the Shopify risk assessment and release the "
+                    "risk hold before validating delivery."
+                ),
+            )
 
     def _should_confirm_shopify_order(self, instance, order_data, sale_order):
         eligible = (
@@ -1244,7 +1242,7 @@ class ShopifyOrderSync(models.Model):
 
     def _after_shopify_gateway_payment(self, gateway_payment, transaction, invoice):
         """Extension hook for optional financial modules."""
-        return None
+        return
 
     def _apply_refunds(self, binding, order_data):
         for refund in order_data["refunds"]:
@@ -1344,7 +1342,7 @@ class ShopifyOrderSync(models.Model):
         if restock:
             try:
                 self._create_restock_return(binding, refund)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 binding.instance_id._write_log(
                     entity="refund",
                     direction="import",
@@ -1507,7 +1505,7 @@ class ShopifyOrderSync(models.Model):
             )
         if _exact_difference(move.amount_total, refund_amount) >= Decimal(
             str(move.currency_id.rounding)
-        ) / Decimal("2"):
+        ) / Decimal(2):
             raise ShopifyOrderImportError(
                 self.env._(
                     "Credit-note total does not match Shopify refund %(refund)s.",
