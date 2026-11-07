@@ -581,3 +581,98 @@ class TestShopifyFulfillmentSync(TransactionCase):
             attempt.action_retry_sync()
 
         push.assert_called_once_with(picking.id)
+
+    def _failed_push_job(self, picking):
+        """Run the push as the job runner does, and store its failure."""
+        job = self.order_binding.with_delay()._job_push_picking_fulfillment(picking.id)
+        client = self._client([], remaining_quantity=1)
+        with (
+            patch.object(type(self.instance), "_shopify_client", return_value=client),
+            self.assertRaisesRegex(UserError, "is not mapped") as error,
+        ):
+            self.order_binding._job_push_picking_fulfillment(picking.id)
+        record = job.db_record()
+        record.write(
+            {
+                "state": "failed",
+                "exc_name": "ShopifyFulfillmentError",
+                "exc_message": str(error.exception),
+            }
+        )
+        return record
+
+    def _push_failure_activities(self, picking):
+        return picking.activity_ids.filtered(
+            lambda activity: activity.summary == "Shopify fulfillment not sent"
+        )
+
+    def test_failed_push_is_reported_on_the_delivery(self):
+        picking = self._delivered_picking()
+        self.env["shopify.location"].search(
+            [("instance_id", "=", self.instance.id)]
+        ).active = False
+
+        self._failed_push_job(picking)
+        self._failed_push_job(picking)
+
+        logs = self.env["shopify.log"].search(
+            [
+                ("instance_id", "=", self.instance.id),
+                ("res_model", "=", "stock.picking"),
+                ("res_id", "=", picking.id),
+                ("level", "=", "error"),
+            ]
+        )
+        self.assertEqual(len(logs), 2)
+        self.assertIn(picking.name, logs[0].message)
+        self.assertIn("is not mapped", logs[0].message)
+        activity = self._push_failure_activities(picking)
+        self.assertEqual(len(activity), 1, "A second failure adds no activity.")
+        self.assertIn("requeue the failed job", activity.note)
+        self.assertFalse(self.env["shopify.fulfillment"].search([]))
+
+    def test_failure_activity_is_assigned_to_a_person(self):
+        users = self.env["res.users"].create(
+            [
+                {"name": "Warehouse Lead", "login": "shopify_wh_lead"},
+                {"name": "Salesperson", "login": "shopify_salesperson"},
+            ]
+        )
+        self.sale.user_id = users[1]
+        picking = self._delivered_picking()
+        self.env["shopify.location"].search(
+            [("instance_id", "=", self.instance.id)]
+        ).active = False
+
+        self._failed_push_job(picking)
+        self.assertEqual(self._push_failure_activities(picking).user_id, users[1])
+
+        self._push_failure_activities(picking).unlink()
+        picking.user_id = users[0]
+        self._failed_push_job(picking)
+        self.assertEqual(self._push_failure_activities(picking).user_id, users[0])
+
+    def test_successful_push_closes_the_failure_activity(self):
+        picking = self._delivered_picking()
+        location = self.env["shopify.location"].search(
+            [("instance_id", "=", self.instance.id)]
+        )
+        location.active = False
+        self._failed_push_job(picking)
+        self.assertTrue(self._push_failure_activities(picking))
+        location.active = True
+        client = self._client([], remaining_quantity=1)
+
+        with patch.object(type(self.instance), "_shopify_client", return_value=client):
+            result = self.order_binding._job_push_picking_fulfillment(picking.id)
+
+        self.assertEqual(self.env["shopify.fulfillment"].browse(result).state, "synced")
+        self.assertFalse(self._push_failure_activities(picking))
+
+    def test_other_failed_jobs_are_not_reported_on_deliveries(self):
+        picking = self._delivered_picking()
+        job = self.order_binding.with_delay()._job_refresh_fulfillment_orders()
+
+        job.db_record().write({"state": "failed", "exc_message": "Boom"})
+
+        self.assertFalse(self._push_failure_activities(picking))
