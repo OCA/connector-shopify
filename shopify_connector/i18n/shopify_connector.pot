@@ -29,6 +29,12 @@ msgstr ""
 
 #. module: shopify_connector
 #. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid "%(message)s Fix the cause, then requeue the failed job in Queue Jobs."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
 #: code:addons/shopify_connector/models/order_sync.py:0
 msgid "%(orders)s orders and %(drafts)s draft orders queued for import."
 msgstr ""
@@ -1266,6 +1272,7 @@ msgstr ""
 #: model:ir.model.fields,field_description:shopify_connector.field_product_product__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_product_template__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_product_template_attribute_value__display_name
+#: model:ir.model.fields,field_description:shopify_connector.field_queue_job__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_res_partner__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_res_partner_category__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_sale_order__display_name
@@ -1715,6 +1722,7 @@ msgstr ""
 #: model:ir.model.fields,field_description:shopify_connector.field_product_product__id
 #: model:ir.model.fields,field_description:shopify_connector.field_product_template__id
 #: model:ir.model.fields,field_description:shopify_connector.field_product_template_attribute_value__id
+#: model:ir.model.fields,field_description:shopify_connector.field_queue_job__id
 #: model:ir.model.fields,field_description:shopify_connector.field_res_partner__id
 #: model:ir.model.fields,field_description:shopify_connector.field_res_partner_category__id
 #: model:ir.model.fields,field_description:shopify_connector.field_sale_order__id
@@ -3163,6 +3171,11 @@ msgid "Queue Export"
 msgstr ""
 
 #. module: shopify_connector
+#: model:ir.model,name:shopify_connector.model_queue_job
+msgid "Queue Job"
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields.selection,name:shopify_connector.selection__shopify_webhook_event__state__queued
 msgid "Queued"
 msgstr ""
@@ -4289,6 +4302,20 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/fulfillment_sync.py:0
 msgid ""
+"Shopify fulfillment for delivery %(picking)s (order %(order)s) was not sent:"
+" %(error)s"
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid "Shopify fulfillment not sent"
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid ""
 "Shopify has a fulfillment hold on delivered quantities that could not be "
 "allocated. Release the hold before pushing %(picking)s."
 msgstr ""
@@ -4791,6 +4818,12 @@ msgstr ""
 msgid ""
 "The Shopify app credentials of %s are incomplete: set the Shopify App Client"
 " Secret next to the Client ID."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid "The Shopify fulfillment was created."
 msgstr ""
 
 #. module: shopify_connector
