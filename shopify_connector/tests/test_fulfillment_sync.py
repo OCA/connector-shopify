@@ -7,9 +7,11 @@ from odoo.tests.common import TransactionCase, new_test_user
 from ..graphql.fulfillment import (
     FULFILLMENT_BY_ID_QUERY,
     FULFILLMENT_CREATE_MUTATION,
+    FULFILLMENT_TRACKING_INFO_UPDATE_MUTATION,
     ORDER_FULFILLMENT_ORDERS_QUERY,
     ORDER_FULFILLMENTS_QUERY,
 )
+from ..lib.client import ShopifyUserError
 from ..lib.fulfillment import (
     FulfillmentAllocationError,
     allocate_fulfillment_lines,
@@ -581,3 +583,99 @@ class TestShopifyFulfillmentSync(TransactionCase):
             attempt.action_retry_sync()
 
         push.assert_called_once_with(picking.id)
+
+    def _pushed_fulfillment(self, picking, *, origin="odoo", number="3SOLD"):
+        return self.env["shopify.fulfillment"].create(
+            {
+                "instance_id": self.instance.id,
+                "order_binding_id": self.order_binding.id,
+                "shopify_id": "gid://shopify/Fulfillment/700",
+                "picking_id": picking.id,
+                "idempotency_key": f"picking:{picking.id}",
+                "origin": origin,
+                "location_shopify_id": LOCATION_ID,
+                "state": "synced",
+                "tracking_number": number,
+            }
+        )
+
+    def _tracking_client(self, number):
+        client = MagicMock()
+        client.execute.return_value = {
+            "fulfillmentTrackingInfoUpdate": {
+                "fulfillment": {
+                    "id": "gid://shopify/Fulfillment/700",
+                    "status": "SUCCESS",
+                    "trackingInfo": [{"company": "", "number": number, "url": ""}],
+                },
+                "userErrors": [],
+            }
+        }
+        return client
+
+    def _edit_tracking(self, picking, fulfillment, number, client):
+        """Change the tracking number and run the queued update right away."""
+        with (
+            patch.object(
+                type(fulfillment), "with_delay", return_value=fulfillment
+            ) as with_delay,
+            patch.object(type(self.instance), "_shopify_client", return_value=client),
+        ):
+            picking.carrier_tracking_ref = number
+        return with_delay
+
+    def test_tracking_changed_after_the_push_is_sent(self):
+        picking = self._delivered_picking()
+        fulfillment = self._pushed_fulfillment(picking)
+        client = self._tracking_client("3SNEW")
+
+        with_delay = self._edit_tracking(picking, fulfillment, "3SNEW", client)
+
+        self.assertEqual(
+            with_delay.call_args.kwargs["identity_key"],
+            f"shopify.fulfillment.tracking.{fulfillment.id}",
+        )
+        calls = self._executed(client, FULFILLMENT_TRACKING_INFO_UPDATE_MUTATION)
+        self.assertEqual(len(calls), 1)
+        variables = calls[0].args[1]
+        self.assertEqual(variables["fulfillmentId"], fulfillment.shopify_id)
+        self.assertEqual(variables["trackingInfoInput"], {"number": "3SNEW"})
+        self.assertEqual(fulfillment.tracking_number, "3SNEW")
+
+    def test_tracking_already_in_shopify_is_not_sent_again(self):
+        picking = self._delivered_picking()
+        fulfillment = self._pushed_fulfillment(picking, number="3SSAME")
+        client = self._tracking_client("3SSAME")
+
+        self._edit_tracking(picking, fulfillment, "3SSAME", client)
+
+        self.assertFalse(client.execute.called)
+
+    def test_tracking_of_an_external_fulfillment_is_not_sent(self):
+        picking = self._delivered_picking()
+        fulfillment = self._pushed_fulfillment(picking, origin="shopify")
+        client = self._tracking_client("3SNEW")
+
+        with_delay = self._edit_tracking(picking, fulfillment, "3SNEW", client)
+
+        with_delay.assert_not_called()
+        self.assertFalse(client.execute.called)
+
+    def test_failed_tracking_update_is_logged(self):
+        picking = self._delivered_picking()
+        fulfillment = self._pushed_fulfillment(picking)
+        client = MagicMock()
+        client.execute.side_effect = ShopifyUserError("Fulfillment is cancelled")
+
+        self._edit_tracking(picking, fulfillment, "3SNEW", client)
+
+        self.assertEqual(fulfillment.tracking_number, "3SOLD")
+        log = self.env["shopify.log"].search(
+            [
+                ("instance_id", "=", self.instance.id),
+                ("res_model", "=", "shopify.fulfillment"),
+                ("res_id", "=", fulfillment.id),
+                ("level", "=", "error"),
+            ]
+        )
+        self.assertIn("Fulfillment is cancelled", log.message)
