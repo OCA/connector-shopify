@@ -11,6 +11,7 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 from odoo.fields import Command
 from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
+from odoo.tools import escape_psql
 
 from odoo.addons.queue_job.exception import RetryableJobError
 
@@ -647,7 +648,20 @@ class ShopifyOrderSync(models.Model):
         if not address or not any(address[key] for key in ("address1", "city", "zip")):
             return partner
         values = self._order_address_values(partner, address, address_type)
-        for candidate in partner | partner.child_ids:
+        # A shared guest customer can collect many contacts, so let the
+        # database narrow them down before the exact comparison.
+        domain = [
+            "|",
+            ("id", "=", partner.id),
+            ("parent_id", "=", partner.id),
+            ("country_id", "=", values["country_id"]),
+        ]
+        for field in ("street", "city", "zip"):
+            if values[field] and values[field].strip():
+                domain.append((field, "ilike", escape_psql(values[field].strip())))
+        candidates = self.env["res.partner"].search(domain)
+        # Prefer the customer itself, as before.
+        for candidate in (candidates & partner) | (candidates - partner):
             if self._is_same_order_address(candidate, values):
                 return candidate
         return (

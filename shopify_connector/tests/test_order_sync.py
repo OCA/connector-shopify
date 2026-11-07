@@ -261,6 +261,45 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         self.assertEqual(order.partner_shipping_id, order.partner_id)
         self.assertEqual(order.partner_invoice_id, order.partner_id)
 
+    def test_guest_order_reuses_the_matching_contact_among_many(self):
+        guest = self.instance.guest_partner_id
+        self.assertTrue(guest)
+        netherlands = self.env.ref("base.nl")
+        self.env["res.partner"].create(
+            [
+                {
+                    "parent_id": guest.id,
+                    "type": "delivery",
+                    "name": "Anna de Vries",
+                    "street": f"Leveringsweg {number}",
+                    "city": "Veendam",
+                    "zip": "9641 AA",
+                    "country_id": netherlands.id,
+                }
+                for number in range(10, 40)
+            ]
+        )
+        same = self.env["res.partner"].create(
+            {
+                "parent_id": guest.id,
+                "type": "delivery",
+                "name": "anna de vries",
+                "street": " LEVERINGSWEG 2 ",
+                "city": "Veendam",
+                "zip": "9641 AA",
+                "country_id": netherlands.id,
+            }
+        )
+
+        binding_id = self.order_model._job_import_order(
+            self.instance.id,
+            self._payload(order_id=20, shippingAddress=self._address("Leveringsweg 2")),
+        )
+
+        order = self.order_model.browse(binding_id).odoo_id
+        self.assertEqual(order.partner_id, guest)
+        self.assertEqual(order.partner_shipping_id, same)
+
     def test_total_verification_failure_leaves_no_sale_order(self):
         before = self.env["sale.order"].search_count([])
 
