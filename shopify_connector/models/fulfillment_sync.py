@@ -408,6 +408,16 @@ class ShopifyOrderFulfillmentSync(models.Model):
     def _fulfillment_push_failed_summary(self):
         return self.env._("Shopify fulfillment not sent")
 
+    def _fulfillment_push_failure_user(self, picking):
+        """Return who gets the to-do for a failed push of this delivery.
+
+        The job usually runs as the superuser or OdooBot, which nobody
+        watches: assign the delivery's responsible, else the salesperson of
+        the order.
+        """
+        candidates = picking.user_id | picking.sale_id.user_id | self.odoo_id.user_id
+        return candidates.filtered(lambda user: user.active and not user.share)[:1]
+
     def _report_fulfillment_push_failure(self, picking_id, error):
         """Make a failed push visible on the delivery and in the Shopify log.
 
@@ -439,9 +449,11 @@ class ShopifyOrderFulfillmentSync(models.Model):
         if not picking.activity_ids.filtered(
             lambda activity: activity.summary == summary
         ):
+            user = binding._fulfillment_push_failure_user(picking)
             picking.activity_schedule(
                 "mail.mail_activity_data_todo",
                 summary=summary,
+                user_id=user.id or self.env.uid,
                 note=self.env._(
                     "%(message)s Fix the cause, then requeue the failed job in "
                     "Queue Jobs.",
