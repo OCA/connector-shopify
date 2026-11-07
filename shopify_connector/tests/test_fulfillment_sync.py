@@ -631,6 +631,27 @@ class TestShopifyFulfillmentSync(TransactionCase):
         self.assertIn("requeue the failed job", activity.note)
         self.assertFalse(self.env["shopify.fulfillment"].search([]))
 
+    def test_failure_activity_is_assigned_to_a_person(self):
+        users = self.env["res.users"].create(
+            [
+                {"name": "Warehouse Lead", "login": "shopify_wh_lead"},
+                {"name": "Salesperson", "login": "shopify_salesperson"},
+            ]
+        )
+        self.sale.user_id = users[1]
+        picking = self._delivered_picking()
+        self.env["shopify.location"].search(
+            [("instance_id", "=", self.instance.id)]
+        ).active = False
+
+        self._failed_push_job(picking)
+        self.assertEqual(self._push_failure_activities(picking).user_id, users[1])
+
+        self._push_failure_activities(picking).unlink()
+        picking.user_id = users[0]
+        self._failed_push_job(picking)
+        self.assertEqual(self._push_failure_activities(picking).user_id, users[0])
+
     def test_successful_push_closes_the_failure_activity(self):
         picking = self._delivered_picking()
         location = self.env["shopify.location"].search(
