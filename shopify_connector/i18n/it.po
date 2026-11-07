@@ -38,6 +38,12 @@ msgstr "%(created)s create e %(repaired)s riparate."
 
 #. module: shopify_connector
 #. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid "%(message)s Fix the cause, then requeue the failed job in Queue Jobs."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
 #: code:addons/shopify_connector/models/order_sync.py:0
 msgid "%(orders)s orders and %(drafts)s draft orders queued for import."
 msgstr ""
@@ -1096,8 +1102,8 @@ msgstr "Nota di credito"
 #: code:addons/shopify_connector/models/order_sync.py:0
 msgid "Credit-note total does not match Shopify refund %(refund)s."
 msgstr ""
-"Il totale della nota di credito non corrisponde al rimborso Shopify %(refund)"
-"s."
+"Il totale della nota di credito non corrisponde al rimborso Shopify %"
+"(refund)s."
 
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_refund__currency_id
@@ -1369,6 +1375,7 @@ msgstr "Invia webhook Shopify %s"
 #: model:ir.model.fields,field_description:shopify_connector.field_product_product__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_product_template__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_product_template_attribute_value__display_name
+#: model:ir.model.fields,field_description:shopify_connector.field_queue_job__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_res_partner__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_res_partner_category__display_name
 #: model:ir.model.fields,field_description:shopify_connector.field_sale_order__display_name
@@ -1843,6 +1850,7 @@ msgstr "Blocchi"
 #: model:ir.model.fields,field_description:shopify_connector.field_product_product__id
 #: model:ir.model.fields,field_description:shopify_connector.field_product_template__id
 #: model:ir.model.fields,field_description:shopify_connector.field_product_template_attribute_value__id
+#: model:ir.model.fields,field_description:shopify_connector.field_queue_job__id
 #: model:ir.model.fields,field_description:shopify_connector.field_res_partner__id
 #: model:ir.model.fields,field_description:shopify_connector.field_res_partner_category__id
 #: model:ir.model.fields,field_description:shopify_connector.field_sale_order__id
@@ -2862,8 +2870,8 @@ msgid ""
 msgstr ""
 "La consegna Odoo %(picking)s è stata annullata dopo la creazione "
 "dell'evasione Shopify %(fulfillment)s. L'evasione Shopify non è stata "
-"annullata automaticamente. Verifica la situazione e usa l'azione manuale «"
-"Annulla in Shopify»: %(link)s"
+"annullata automaticamente. Verifica la situazione e usa l'azione manuale "
+"«Annulla in Shopify»: %(link)s"
 
 #. module: shopify_connector
 #: model:ir.model.fields,help:shopify_connector.field_shopify_instance__inventory_quantity_basis
@@ -3063,8 +3071,8 @@ msgid ""
 "Order total mismatch: Odoo %(odoo)s, Shopify %(shopify)s, difference %"
 "(difference)s %(currency)s."
 msgstr ""
-"Mancata corrispondenza del totale ordine: Odoo %(odoo)s, Shopify %(shopify)"
-"s, differenza %(difference)s %(currency)s."
+"Mancata corrispondenza del totale ordine: Odoo %(odoo)s, Shopify %"
+"(shopify)s, differenza %(difference)s %(currency)s."
 
 #. module: shopify_connector
 #. odoo-python
@@ -3351,6 +3359,11 @@ msgstr "Quanti"
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_product_export_wizard_view_form
 msgid "Queue Export"
 msgstr "Accoda esportazione"
+
+#. module: shopify_connector
+#: model:ir.model,name:shopify_connector.model_queue_job
+msgid "Queue Job"
+msgstr ""
 
 #. module: shopify_connector
 #: model:ir.model.fields.selection,name:shopify_connector.selection__shopify_webhook_event__state__queued
@@ -4517,6 +4530,20 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/fulfillment_sync.py:0
 msgid ""
+"Shopify fulfillment for delivery %(picking)s (order %(order)s) was not sent: "
+"%(error)s"
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid "Shopify fulfillment not sent"
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid ""
 "Shopify has a fulfillment hold on delivered quantities that could not be "
 "allocated. Release the hold before pushing %(picking)s."
 msgstr ""
@@ -4679,7 +4706,8 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/order_sync.py:0
 msgid "Shopify returned an invalid order page cursor."
-msgstr "Shopify ha restituito un cursore non valido per la pagina degli ordini."
+msgstr ""
+"Shopify ha restituito un cursore non valido per la pagina degli ordini."
 
 #. module: shopify_connector
 #. odoo-python
@@ -5048,6 +5076,12 @@ msgid ""
 msgstr ""
 "Le credenziali dell'app Shopify %s sono incomplete: inserire il segreto "
 "client dell'app Shopify accanto all'ID client."
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid "The Shopify fulfillment was created."
+msgstr ""
 
 #. module: shopify_connector
 #. odoo-python
