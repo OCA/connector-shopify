@@ -4,6 +4,8 @@ from odoo import fields
 from odoo.exceptions import AccessError, UserError
 from odoo.tests.common import TransactionCase, new_test_user
 
+from odoo.addons.queue_job.exception import RetryableJobError
+
 from ..graphql.fulfillment import (
     FULFILLMENT_BY_ID_QUERY,
     FULFILLMENT_CREATE_MUTATION,
@@ -11,7 +13,7 @@ from ..graphql.fulfillment import (
     ORDER_FULFILLMENT_ORDERS_QUERY,
     ORDER_FULFILLMENTS_QUERY,
 )
-from ..lib.client import ShopifyUserError
+from ..lib.client import ShopifyServerError, ShopifyThrottled, ShopifyUserError
 from ..lib.fulfillment import (
     FulfillmentAllocationError,
     allocate_fulfillment_lines,
@@ -679,3 +681,31 @@ class TestShopifyFulfillmentSync(TransactionCase):
             ]
         )
         self.assertIn("Fulfillment is cancelled", log.message)
+
+    def test_temporary_tracking_update_failure_is_retried(self):
+        picking = self._delivered_picking()
+        fulfillment = self._pushed_fulfillment(picking)
+        with patch.object(type(fulfillment), "with_delay"):
+            picking.carrier_tracking_ref = "3SNEW"
+
+        for error in (ShopifyThrottled("Throttled"), ShopifyServerError("502")):
+            client = MagicMock()
+            client.execute.side_effect = error
+            with (
+                patch.object(
+                    type(self.instance), "_shopify_client", return_value=client
+                ),
+                self.assertRaises(RetryableJobError),
+            ):
+                fulfillment._job_update_tracking()
+
+        self.assertEqual(fulfillment.tracking_number, "3SOLD")
+        self.assertFalse(
+            self.env["shopify.log"].search(
+                [
+                    ("res_model", "=", "shopify.fulfillment"),
+                    ("res_id", "=", fulfillment.id),
+                    ("level", "=", "error"),
+                ]
+            )
+        )

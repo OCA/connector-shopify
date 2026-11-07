@@ -21,7 +21,7 @@ from ..graphql.fulfillment import (
     ORDER_FULFILLMENT_ORDERS_QUERY,
     ORDER_FULFILLMENTS_QUERY,
 )
-from ..lib.client import ShopifyError
+from ..lib.client import ShopifyError, ShopifyServerError, ShopifyThrottled
 from ..lib.fulfillment import (
     FulfillmentAllocationError,
     allocate_fulfillment_lines,
@@ -870,6 +870,9 @@ class ShopifyFulfillmentActions(models.Model):
                     ),
                 },
             )
+        except (ShopifyThrottled, ShopifyServerError) as exc:
+            # Temporary: let queue_job retry the update later.
+            raise RetryableJobError(str(exc), seconds=60) from exc
         except ShopifyError as exc:
             self.instance_id._write_log(
                 entity="fulfillment",
