@@ -1,0 +1,2 @@
+id,name,model_id,group_id/id,operation,domain
+shopify_product_image_company_rule,Shopify image bindings by company,shopify.product.image,shopify_connector.group_shopify_manager,crud,"[('instance_id.company_id', 'in', company_ids)]"
