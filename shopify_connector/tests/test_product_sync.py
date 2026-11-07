@@ -602,3 +602,115 @@ class TestShopifyPricelistRuleExport(TransactionCase):
         )
 
         self.assertFalse(exports)
+
+
+class TestShopifyExportInventoryTracking(TransactionCase):
+    """A variant created by the export is tracked, with its Odoo stock."""
+
+    LOCATION_ID = "gid://shopify/Location/950"
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.instance = cls.env["shopify.instance"].create(
+            {
+                "name": "Tracking Shop",
+                "shop_url": "tracking-shop.myshopify.com",
+                "access_token": "test-token",
+                "webhook_secret": "test-secret",
+            }
+        )
+        cls.instance.state = "connected"
+        company = cls.instance.company_id
+        cls.warehouse = cls.env["stock.warehouse"].search(
+            [("company_id", "=", company.id)], limit=1
+        )
+        cls.env["shopify.location"].create(
+            {
+                "instance_id": cls.instance.id,
+                "shopify_id": cls.LOCATION_ID,
+                "legacy_resource_id": "950",
+                "name": "Main",
+                "active": True,
+                "state": "synced",
+                "warehouse_id": cls.warehouse.id,
+                "odoo_location_id": cls.warehouse.lot_stock_id.id,
+            }
+        )
+        cls.storable = cls.env["product.product"].create(
+            {
+                "name": "Tracked Cloth",
+                "default_code": "TRACK-1",
+                "type": "consu",
+                "is_storable": True,
+                "company_id": company.id,
+            }
+        )
+        cls.env["stock.quant"]._update_available_quantity(
+            cls.storable, cls.warehouse.lot_stock_id, 7
+        )
+
+    def _variant_input(self, product, binding=None):
+        product_input, _files = self.env["shopify.product.template"]._product_set_input(
+            self.instance, product.product_tmpl_id, binding
+        )
+        return product_input["variants"][0]
+
+    def _binding(self, product, *, with_variant):
+        binding = self.env["shopify.product.template"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/Product/960",
+                "odoo_id": product.product_tmpl_id.id,
+                "status": "ACTIVE",
+                "state": "synced",
+            }
+        )
+        if with_variant:
+            self.env["shopify.product.variant"].create(
+                {
+                    "instance_id": self.instance.id,
+                    "shopify_id": "gid://shopify/ProductVariant/961",
+                    "template_binding_id": binding.id,
+                    "odoo_id": product.id,
+                }
+            )
+        return binding
+
+    def test_new_storable_variant_is_tracked_with_its_stock(self):
+        values = self._variant_input(self.storable)
+
+        self.assertEqual(values["inventoryItem"], {"tracked": True})
+        self.assertEqual(
+            values["inventoryQuantities"],
+            [{"locationId": self.LOCATION_ID, "name": "available", "quantity": 7}],
+        )
+
+    def test_existing_variant_keeps_its_shopify_inventory_settings(self):
+        binding = self._binding(self.storable, with_variant=True)
+
+        values = self._variant_input(self.storable, binding)
+
+        self.assertNotIn("inventoryItem", values)
+        self.assertNotIn("inventoryQuantities", values)
+
+    def test_new_variant_of_a_product_without_stock_sync_is_not_tracked(self):
+        binding = self._binding(self.storable, with_variant=False)
+        binding.inventory_sync_enabled = False
+
+        values = self._variant_input(self.storable, binding)
+
+        self.assertNotIn("inventoryItem", values)
+
+    def test_service_is_not_tracked(self):
+        service = self.env["product.product"].create(
+            {
+                "name": "Gift wrap",
+                "type": "service",
+                "company_id": self.instance.company_id.id,
+            }
+        )
+
+        values = self._variant_input(service)
+
+        self.assertNotIn("inventoryItem", values)
