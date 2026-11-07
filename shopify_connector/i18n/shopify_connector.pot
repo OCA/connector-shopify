@@ -1550,6 +1550,15 @@ msgid "Failed to fulfill %(picking)s: %(error)s"
 msgstr ""
 
 #. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid ""
+"Failed to update the tracking of Shopify fulfillment %(fulfillment)s for "
+"%(picking)s: %(error)s. Save the tracking number of the delivery again to "
+"resend it."
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_field_mapping__field
 msgid "Field"
 msgstr ""
@@ -5201,6 +5210,20 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/customer_sync.py:0
 msgid "Unsupported catalog currency %s."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid "Update Shopify tracking for %s"
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/fulfillment_sync.py:0
+msgid ""
+"Updated the tracking of Shopify fulfillment %(fulfillment)s for %(picking)s:"
+" %(number)s."
 msgstr ""
 
 #. module: shopify_connector
