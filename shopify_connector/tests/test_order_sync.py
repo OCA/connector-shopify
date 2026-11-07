@@ -115,6 +115,24 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         payload.update(values)
         return payload
 
+    def _cancelled_payload(self, order_id, **values):
+        """Return an order as Shopify sends it after a cancellation.
+
+        Shopify keeps the ordered quantity but sets the current quantity of
+        every line, and the current totals, to 0.
+        """
+        payload = self._payload(
+            order_id=order_id,
+            total="0.00",
+            cancelledAt="2026-01-12T10:00:00Z",
+            updatedAt="2026-01-12T10:00:00Z",
+            **values,
+        )
+        for line in payload["lineItems"]["nodes"]:
+            line["currentQuantity"] = 0
+            line["refundableQuantity"] = 0
+        return payload
+
     def test_order_build_and_edit_are_idempotent(self):
         binding_id = self.order_model._job_import_order(
             self.instance.id, self._payload()
@@ -361,15 +379,12 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         with patch.object(type(self.order_model), "_is_delivered", return_value=True):
             result = self.order_model._job_import_order(
                 self.instance.id,
-                self._payload(
-                    order_id=4,
-                    cancelledAt="2026-01-12T10:00:00Z",
-                    updatedAt="2026-01-12T10:00:00Z",
-                ),
+                self._cancelled_payload(order_id=4),
             )
 
         self.assertFalse(result)
         self.assertNotEqual(binding.odoo_id.state, "cancel")
+        self.assertIn("already delivered", binding.error_message)
 
     def test_cancel_that_odoo_does_not_apply_is_reported(self):
         self.instance.order_confirmation_policy = "auto"
@@ -387,12 +402,7 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         ):
             result = self.order_model._job_import_order(
                 self.instance.id,
-                self._payload(
-                    order_id=13,
-                    displayFinancialStatus="PAID",
-                    cancelledAt="2026-01-12T10:00:00Z",
-                    updatedAt="2026-01-12T10:00:00Z",
-                ),
+                self._cancelled_payload(order_id=13, displayFinancialStatus="PAID"),
             )
 
         self.assertFalse(result)
@@ -408,18 +418,34 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         binding = self.order_model.browse(binding_id)
         self.assertEqual(binding.odoo_id.state, "sale")
 
+        sale_order = binding.odoo_id
+
         result = self.order_model._job_import_order(
             self.instance.id,
-            self._payload(
-                order_id=12,
-                displayFinancialStatus="PAID",
-                cancelledAt="2026-01-12T10:00:00Z",
-                updatedAt="2026-01-12T10:00:00Z",
-            ),
+            self._cancelled_payload(order_id=12, displayFinancialStatus="PAID"),
         )
 
         self.assertTrue(result, binding.error_message)
-        self.assertEqual(binding.odoo_id.state, "cancel")
+        self.assertEqual(sale_order.state, "cancel")
+        self.assertEqual(sale_order.order_line.product_uom_qty, 1)
+
+    def test_cancel_of_quotation_keeps_its_lines(self):
+        binding = self.order_model.browse(
+            self.order_model._job_import_order(
+                self.instance.id, self._payload(order_id=15)
+            )
+        )
+        sale_order = binding.odoo_id
+        self.assertEqual(sale_order.state, "draft")
+
+        result = self.order_model._job_import_order(
+            self.instance.id, self._cancelled_payload(order_id=15)
+        )
+
+        self.assertTrue(result, binding.error_message)
+        self.assertEqual(sale_order.state, "cancel")
+        self.assertEqual(sale_order.order_line.product_uom_qty, 1)
+        self.assertEqual(sale_order.amount_total, 10)
 
     def test_unmapped_tax_records_actionable_error(self):
         payload = self._payload(order_id=5, total="11.00")
