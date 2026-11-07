@@ -1364,7 +1364,7 @@ class ShopifyOrderSync(models.Model):
                 binding, invoices[0], refund, amount, selected_side
             )
         elif not invoices:
-            self._adjust_uninvoiced_refund(binding, refund, amount)
+            self._adjust_uninvoiced_refund(binding, refund)
         if restock:
             try:
                 self._create_restock_return(binding, refund)
@@ -1541,7 +1541,7 @@ class ShopifyOrderSync(models.Model):
         move.action_post()
         return move
 
-    def _adjust_uninvoiced_refund(self, binding, refund, amount):
+    def _adjust_uninvoiced_refund(self, binding, refund):
         sale_order = binding.odoo_id
         if self._is_delivered(sale_order):
             raise ShopifyOrderImportError(

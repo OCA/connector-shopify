@@ -843,25 +843,59 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
             orders_updated_search(since), "updated_at:>='2026-11-02T09:30:15Z'"
         )
 
-    def _refunded_before_invoice_payload(self, order_id, refunded_quantity):
-        """Three units at 10.00, some of them refunded before any invoice."""
+    def _refunded_before_invoice_payload(
+        self, order_id, refunded_quantity, refunded_shipping=None
+    ):
+        """Three units at 10.00, some of them refunded before any invoice.
+
+        With ``refunded_shipping``, the order also has 5.00 of shipping and
+        the refund returns that much of it.
+        """
         remaining = 3 - refunded_quantity
-        total = f"{remaining * 10}.00"
+        shipping = 5 if refunded_shipping is not None else 0
+        current_shipping = shipping - (refunded_shipping or 0)
+        total = f"{remaining * 10 + current_shipping}.00"
         payload = self._payload(
             order_id=order_id,
             quantity=3,
             total=total,
             displayFinancialStatus="PARTIALLY_REFUNDED",
+            currentShippingPriceSet=self._bag(f"{current_shipping}.00"),
         )
         line = payload["lineItems"]["nodes"][0]
         line["currentQuantity"] = remaining
         line["refundableQuantity"] = remaining
+        refund_shipping_lines = []
+        if refunded_shipping is not None:
+            payload["shippingLines"] = {
+                "nodes": [
+                    {
+                        "id": f"gid://shopify/ShippingLine/{order_id}3",
+                        "title": "Standard",
+                        "code": "standard",
+                        "originalPriceSet": self._bag(f"{shipping}.00"),
+                        # Shopify: "The current shipping price after applying
+                        # refunds, after applying discounts."
+                        "currentDiscountedPriceSet": self._bag(
+                            f"{current_shipping}.00"
+                        ),
+                        "taxLines": [],
+                    }
+                ]
+            }
+            refund_shipping_lines = [
+                {
+                    "id": f"gid://shopify/RefundShippingLine/{order_id}4",
+                    "subtotalAmountSet": self._bag(f"{refunded_shipping}.00"),
+                }
+            ]
+        refunded_total = refunded_quantity * 10 + (refunded_shipping or 0)
         payload["refunds"] = {
             "nodes": [
                 {
                     "id": f"gid://shopify/Refund/{order_id}1",
                     "createdAt": "2026-01-11T10:00:00Z",
-                    "totalRefundedSet": self._bag(f"{refunded_quantity * 10}.00"),
+                    "totalRefundedSet": self._bag(f"{refunded_total}.00"),
                     "refundLineItems": {
                         "nodes": [
                             {
@@ -876,7 +910,7 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
                             }
                         ]
                     },
-                    "refundShippingLines": {"nodes": []},
+                    "refundShippingLines": {"nodes": refund_shipping_lines},
                     "orderAdjustments": {"nodes": []},
                     "transactions": {"nodes": []},
                 }
@@ -911,3 +945,14 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         binding_id = self.order_model._job_import_order(self.instance.id, payload)
 
         self.assertEqual(self.order_model.browse(binding_id).odoo_id.state, "cancel")
+
+    def test_full_refund_with_shipping_before_invoice_cancels_the_order(self):
+        self.instance.refund_uninvoiced_policy = "cancel"
+        payload = self._refunded_before_invoice_payload(
+            97, refunded_quantity=3, refunded_shipping=5
+        )
+
+        binding_id = self.order_model._job_import_order(self.instance.id, payload)
+
+        binding = self.order_model.browse(binding_id)
+        self.assertEqual(binding.odoo_id.state, "cancel", binding.error_message)
