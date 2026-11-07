@@ -385,7 +385,71 @@ class ShopifyOrderFulfillmentSync(models.Model):
             url,
         )
 
-    def _job_push_picking_fulfillment(self, picking_id):  # noqa: C901
+    def _job_push_picking_fulfillment(self, picking_id):
+        result = self._push_picking_fulfillment(picking_id)
+        if result:
+            self._close_fulfillment_push_activities(picking_id)
+        return result
+
+    def _close_fulfillment_push_activities(self, picking_id):
+        """Mark done the activities left by failed pushes of this delivery."""
+        # The job may run as a stock user; the activities belong to the
+        # connector's failure reports.
+        picking = self.env["stock.picking"].sudo().browse(picking_id).exists()
+        summary = self._fulfillment_push_failed_summary()
+        activities = picking.activity_ids.filtered(
+            lambda activity: activity.summary == summary
+        )
+        if activities:
+            activities.action_feedback(
+                feedback=self.env._("The Shopify fulfillment was created.")
+            )
+
+    def _fulfillment_push_failed_summary(self):
+        return self.env._("Shopify fulfillment not sent")
+
+    def _report_fulfillment_push_failure(self, picking_id, error):
+        """Make a failed push visible on the delivery and in the Shopify log.
+
+        The push job only reaches Shopify at its end. When it fails before,
+        for example because the delivery's source location is not mapped,
+        Odoo has no fulfillment record to mark as failed, so the error would
+        otherwise only show in Queue Jobs.
+        """
+        self.ensure_one()
+        binding = self.sudo()
+        picking = self.env["stock.picking"].sudo().browse(picking_id).exists()
+        if not picking:
+            return
+        message = self.env._(
+            "Shopify fulfillment for delivery %(picking)s (order %(order)s) "
+            "was not sent: %(error)s",
+            picking=picking.name,
+            order=binding.order_name or binding.shopify_id,
+            error=error,
+        )
+        binding.instance_id._write_log(
+            entity="fulfillment",
+            direction="export",
+            level="error",
+            message=message,
+            record=picking,
+        )
+        summary = self._fulfillment_push_failed_summary()
+        if not picking.activity_ids.filtered(
+            lambda activity: activity.summary == summary
+        ):
+            picking.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary=summary,
+                note=self.env._(
+                    "%(message)s Fix the cause, then requeue the failed job in "
+                    "Queue Jobs.",
+                    message=message,
+                ),
+            )
+
+    def _push_picking_fulfillment(self, picking_id):  # noqa: C901
         self = self.sudo()
         self.ensure_one()
         if not self.instance_id.active:
@@ -1555,3 +1619,23 @@ WEBHOOK_HANDLERS.update(
         "fulfillments/update": "_handle_fulfillments_update",
     }
 )
+
+
+class QueueJobShopifyFulfillmentFailure(models.Model):
+    _inherit = "queue.job"
+
+    def write(self, vals):
+        result = super().write(vals)
+        if vals.get("state") == "failed":
+            # The job runner stores the failure in a new transaction, after
+            # the job's own changes were rolled back.
+            for job in self.filtered(
+                lambda item: item.model_name == "shopify.order"
+                and item.method_name == "_job_push_picking_fulfillment"
+                and item.args
+            ):
+                for binding in job.records.exists():
+                    binding._report_fulfillment_push_failure(
+                        job.args[0], job.exc_message or job.exc_name or ""
+                    )
+        return result
