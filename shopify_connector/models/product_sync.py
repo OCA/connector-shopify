@@ -25,6 +25,7 @@ from ..graphql.product import (
 )
 from ..lib.bulk import ShopifyBulkRunner
 from ..lib.client import ShopifyUserError
+from ..lib.inventory import apply_negative_policy, quantity_for_basis
 from ..lib.product import (
     merge_owned_fields,
     normalize_bulk_products,
@@ -1379,6 +1380,10 @@ class ShopifyProductTemplateSync(models.Model):
                 ]
             if variant_binding:
                 values["id"] = variant_binding.shopify_id
+            else:
+                values.update(
+                    self._new_variant_inventory_input(instance, variant, binding)
+                )
             if is_new or owners["price"] == "odoo":
                 values["price"] = self._export_price(instance, variant)
             variants.append(values)
@@ -1493,6 +1498,48 @@ class ShopifyProductTemplateSync(models.Model):
         return variants
 
     @api.model
+    def _new_variant_inventory_input(self, instance, variant, binding):
+        """Return the inventory input of a variant the export creates.
+
+        Shopify creates variants without inventory tracking, so their stock
+        would never be synced, and Shopify would sell them without limit.
+        Track the stock of storable products, and set it at the mapped
+        locations.
+        """
+        storable = (
+            variant.is_storable
+            if "is_storable" in variant._fields
+            else variant.type == "product"
+        )
+        if not storable or (binding and not binding.inventory_sync_enabled):
+            return {}
+        quantities = []
+        for location in instance.location_binding_ids.filtered(
+            lambda item: item.active and item.odoo_location_id and item.shopify_id
+        ):
+            product = variant.with_company(instance.company_id).with_context(
+                location=location.odoo_location_id.id
+            )
+            quantity, _clamped = apply_negative_policy(
+                quantity_for_basis(
+                    product.free_qty,
+                    product.qty_available,
+                    instance.inventory_quantity_basis,
+                ),
+                instance.inventory_allow_negative,
+            )
+            quantities.append(
+                {
+                    "locationId": location.shopify_id,
+                    "name": "available",
+                    "quantity": quantity,
+                }
+            )
+        values = {"inventoryItem": {"tracked": True}}
+        if quantities:
+            values["inventoryQuantities"] = quantities
+        return values
+
     def _export_price(self, instance, variant):
         pricelist = instance.product_pricelist_id.with_company(instance.company_id)
         amount = (
