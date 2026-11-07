@@ -1,6 +1,7 @@
 # pylint: disable=consider-merging-classes-inherited
 
 import hashlib
+from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -1974,43 +1975,60 @@ class ProductPricelistItem(models.Model):
         return result
 
     def _shopify_export_targets(self):
+        """Return the (instance, template) pairs whose Shopify price may change.
+
+        A rule changes the price of the bound products it applies to: one
+        variant, one product, a product category with its subcategories, or
+        every product of the pricelist.
+        """
         targets = set()
-        items = self.sudo().filtered("product_id")
-        pricelist_ids = items.mapped("pricelist_id").ids
+        items = self.sudo()
         instances = (
             self.env["shopify.instance"]
             .sudo()
             .search(
                 [
-                    ("product_pricelist_id", "in", pricelist_ids),
+                    ("product_pricelist_id", "in", items.mapped("pricelist_id").ids),
                     ("company_id", "in", self.env.companies.ids),
                 ]
             )
         )
-        instances_by_pricelist = {
-            instance.product_pricelist_id.id: instance
-            for instance in instances
-            if instance._is_product_field_owned_by("price", "odoo")
-        }
-        for item in items:
-            instance = instances_by_pricelist.get(item.pricelist_id.id)
-            if not instance:
-                continue
-            template = item.product_id.product_tmpl_id
-            binding = (
-                self.env["shopify.product.template"]
-                .sudo()
-                .search(
-                    [
-                        ("instance_id", "=", instance.id),
-                        ("odoo_id", "=", template.id),
-                    ],
-                    limit=1,
+        instances_by_pricelist = defaultdict(list)
+        for instance in instances:
+            if instance._is_product_field_owned_by("price", "odoo"):
+                instances_by_pricelist[instance.product_pricelist_id.id].append(
+                    instance
                 )
-            )
-            if binding:
-                targets.add((instance.id, template.id))
+        binding_model = self.env["shopify.product.template"].sudo()
+        for item in items:
+            scope = item._shopify_binding_scope()
+            if scope is None:
+                continue
+            for instance in instances_by_pricelist.get(item.pricelist_id.id, []):
+                bindings = binding_model.search(
+                    [("instance_id", "=", instance.id), *scope]
+                )
+                targets.update(
+                    (instance.id, template_id) for template_id in bindings.odoo_id.ids
+                )
         return targets
+
+    def _shopify_binding_scope(self):
+        """Return the product binding domain this rule applies to, or None."""
+        self.ensure_one()
+        if self.applied_on == "0_product_variant":
+            if not self.product_id:
+                return None
+            return [("odoo_id", "=", self.product_id.product_tmpl_id.id)]
+        if self.applied_on == "1_product":
+            if not self.product_tmpl_id:
+                return None
+            return [("odoo_id", "=", self.product_tmpl_id.id)]
+        if self.applied_on == "2_product_category":
+            if not self.categ_id:
+                return None
+            return [("odoo_id.categ_id", "child_of", self.categ_id.id)]
+        return []
 
     def _queue_shopify_price_exports(self, previous_targets=None):
         if self.env.context.get("skip_shopify_export"):

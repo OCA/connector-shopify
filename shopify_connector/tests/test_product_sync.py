@@ -499,3 +499,110 @@ class TestShopifyProductSync(TransactionCase):
         )
 
         self.assertEqual(unmanaged_ids, [SHARED_IMAGE_ID])
+
+
+class TestShopifyPricelistRuleExport(TransactionCase):
+    """A rule in the store pricelist re-exports the bound products it prices."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.instance = cls.env["shopify.instance"].create(
+            {
+                "name": "Pricelist Shop",
+                "shop_url": "pricelist-shop.myshopify.com",
+                "access_token": "test-token",
+                "webhook_secret": "test-secret",
+            }
+        )
+        cls.instance.state = "connected"
+        company = cls.instance.company_id
+        cls.parent_category = cls.env["product.category"].create({"name": "Baby"})
+        cls.category = cls.env["product.category"].create(
+            {"name": "Blankets", "parent_id": cls.parent_category.id}
+        )
+        cls.bound, cls.unbound = cls.env["product.template"].create(
+            [
+                {
+                    "name": "Bound Blanket",
+                    "categ_id": cls.category.id,
+                    "list_price": 25,
+                    "company_id": company.id,
+                },
+                {
+                    "name": "Unbound Blanket",
+                    "categ_id": cls.category.id,
+                    "list_price": 25,
+                    "company_id": company.id,
+                },
+            ]
+        )
+        cls.env["shopify.product.template"].create(
+            {
+                "instance_id": cls.instance.id,
+                "shopify_id": "gid://shopify/Product/900",
+                "odoo_id": cls.bound.id,
+                "status": "ACTIVE",
+                "state": "synced",
+            }
+        )
+
+    def _rule(self, **values):
+        return {
+            "pricelist_id": self.instance.product_pricelist_id.id,
+            "compute_price": "fixed",
+            "fixed_price": 22,
+            **values,
+        }
+
+    def _queued_exports(self, action):
+        binding_class = type(self.env["shopify.product.template"])
+        with patch.object(binding_class, "_enqueue_product_export") as enqueue:
+            action()
+        return {(call.args[0], call.args[1]) for call in enqueue.call_args_list}
+
+    def test_product_rule_exports_the_product(self):
+        exports = self._queued_exports(
+            lambda: self.env["product.pricelist.item"].create(
+                self._rule(applied_on="1_product", product_tmpl_id=self.bound.id)
+            )
+        )
+
+        self.assertEqual(exports, {(self.instance, self.bound)})
+
+    def test_category_rule_exports_the_bound_products_of_subcategories(self):
+        exports = self._queued_exports(
+            lambda: self.env["product.pricelist.item"].create(
+                self._rule(
+                    applied_on="2_product_category",
+                    categ_id=self.parent_category.id,
+                )
+            )
+        )
+
+        self.assertEqual(exports, {(self.instance, self.bound)})
+
+    def test_global_rule_change_and_removal_export_the_bound_products(self):
+        rule = self.env["product.pricelist.item"].create(
+            self._rule(applied_on="3_global")
+        )
+
+        changed = self._queued_exports(lambda: rule.write({"fixed_price": 21}))
+        removed = self._queued_exports(rule.unlink)
+
+        self.assertEqual(changed, {(self.instance, self.bound)})
+        self.assertEqual(removed, {(self.instance, self.bound)})
+
+    def test_rule_in_another_pricelist_exports_nothing(self):
+        other = self.env["product.pricelist"].create({"name": "Other"})
+
+        exports = self._queued_exports(
+            lambda: self.env["product.pricelist.item"].create(
+                {
+                    **self._rule(applied_on="1_product", product_tmpl_id=self.bound.id),
+                    "pricelist_id": other.id,
+                }
+            )
+        )
+
+        self.assertFalse(exports)
