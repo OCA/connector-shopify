@@ -555,6 +555,11 @@ class ShopifyOrderSync(models.Model):
                 order_data,
             )
             return sale_order
+        if sale_order and order_data["cancelled_at"]:
+            # Shopify sets the current quantity of every line of a cancelled
+            # order to 0. Keep the lines: Odoo does not remove the lines of a
+            # confirmed order, and _apply_state cancels the order.
+            return sale_order
         if sale_order and self._is_delivered(sale_order):
             differences = line_diffs(
                 self._existing_line_snapshot(binding, sale_order),
