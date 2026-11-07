@@ -309,6 +309,79 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
         self.assertEqual(binding.missing_tax_rate, "0.1")
         self.assertTrue(binding.missing_tax_country_id)
 
+    def _austin_payload(self, order_id):
+        # Austin, TX: state 6.25 %, city 1 %, transit 1 %.
+        payload = self._payload(order_id=order_id, total="108.25")
+        payload["shippingAddress"] = {"countryCodeV2": "US"}
+        payload["currentSubtotalPriceSet"] = self._bag("100.00")
+        payload["currentTotalTaxSet"] = self._bag("8.25")
+        line = payload["lineItems"]["nodes"][0]
+        line["id"] = f"gid://shopify/LineItem/{order_id}0"
+        line["originalUnitPriceSet"] = self._bag("100.00")
+        line["discountedUnitPriceAfterAllDiscountsSet"] = self._bag("100.00")
+        line["taxLines"] = [
+            {"title": title, "rate": rate, "priceSet": self._bag(amount)}
+            for title, rate, amount in (
+                ("Texas State Tax", "0.0625", "6.25"),
+                ("Austin City Tax", "0.01", "1.00"),
+                ("Austin MTA Transit", "0.01", "1.00"),
+            )
+        ]
+        return payload
+
+    def _map_tax(self, rate, amount):
+        tax = self.env["account.tax"].create(
+            {
+                "name": f"Tax {amount}%",
+                "amount": amount,
+                "amount_type": "percent",
+                "type_tax_use": "sale",
+                "company_id": self.instance.company_id.id,
+            }
+        )
+        self.env["shopify.tax.mapping"].create(
+            {
+                "instance_id": self.instance.id,
+                "rate": rate,
+                "country_id": self.env.ref("base.us").id,
+                "price_included": False,
+                "tax_id": tax.id,
+            }
+        )
+        return tax
+
+    def test_same_rate_tax_lines_use_the_mapping_of_their_sum(self):
+        state_tax = self._map_tax("0.0625", 6.25)
+        self._map_tax("0.01", 1.0)
+        local_tax = self._map_tax("0.02", 2.0)
+
+        binding = self.order_model.browse(
+            self.order_model._job_import_order(
+                self.instance.id, self._austin_payload(order_id=92)
+            )
+        )
+
+        self.assertEqual(binding.state, "synced")
+        self.assertEqual(binding.odoo_id.amount_total, 108.25)
+        self.assertEqual(binding.odoo_id.order_line.tax_ids, state_tax | local_tax)
+
+    def test_same_rate_tax_lines_ask_for_the_mapping_of_their_sum(self):
+        self._map_tax("0.0625", 6.25)
+        self._map_tax("0.01", 1.0)
+
+        result = self.order_model._job_import_order(
+            self.instance.id, self._austin_payload(order_id=93)
+        )
+
+        binding = self.order_model.search(
+            [
+                ("instance_id", "=", self.instance.id),
+                ("shopify_id", "=", "gid://shopify/Order/93"),
+            ]
+        )
+        self.assertFalse(result)
+        self.assertEqual(binding.missing_tax_rate, "0.02")
+
     def test_high_risk_sets_hold_and_release_action(self):
         payload = self._payload(order_id=6)
         payload["risk"] = {"assessments": [{"riskLevel": "HIGH"}]}
