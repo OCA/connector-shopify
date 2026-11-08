@@ -806,8 +806,6 @@ class TestShopifyFulfillmentSync(TransactionCase):
         )
 
     def test_kit_delivery_is_sent_as_kits_of_its_order_line(self):
-        if "mrp.bom" not in self.env:
-            self.skipTest("Kits need the Manufacturing app.")
         products = {}
         for name in ("Kit", "Widget", "Gadget"):
             products[name] = self.env["product.product"].create(
@@ -819,16 +817,6 @@ class TestShopifyFulfillmentSync(TransactionCase):
                 }
             )
         kit, widget, gadget = products["Kit"], products["Widget"], products["Gadget"]
-        self.env["mrp.bom"].create(
-            {
-                "product_tmpl_id": kit.product_tmpl_id.id,
-                "type": "phantom",
-                "bom_line_ids": [
-                    (0, 0, {"product_id": widget.id, "product_qty": 1}),
-                    (0, 0, {"product_id": gadget.id, "product_qty": 2}),
-                ],
-            }
-        )
         kit_template = self.env["shopify.product.template"].create(
             {
                 "instance_id": self.instance.id,
@@ -871,6 +859,19 @@ class TestShopifyFulfillmentSync(TransactionCase):
             )
         self.sale.action_confirm()
         picking = self.sale.picking_ids
+        # The module does not depend on mrp, so make the moves that a phantom
+        # BoM of 1 widget and 2 gadgets makes: one per component, on the kit line.
+        kit_move = picking.move_ids.filtered(lambda move: move.product_id == kit)
+        for product, quantity in ((widget, 3), (gadget, 6)):
+            kit_move.copy(
+                {
+                    "product_id": product.id,
+                    "product_uom_qty": quantity,
+                    "sale_line_id": kit_line.id,
+                }
+            )._action_confirm()
+        kit_move._action_cancel()
+        kit_move.unlink()
         picking.action_assign()
         # Two whole kits and half of the third one leave in this delivery.
         for move in picking.move_ids:
