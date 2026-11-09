@@ -258,6 +258,36 @@ class TestShopifyPayoutAccounting(AccountTestInvoicingCommon):
 
         self.assertEqual(dispute.dispute_status, "WON")
 
+    def test_dispute_import_starts_a_day_before_the_oldest_open_dispute(self):
+        # Opened just after midnight UTC: still the day before in a shop
+        # west of UTC.
+        self.instance._upsert_dispute(
+            {
+                "id": "gid://shopify/ShopifyPaymentsDispute/709",
+                "order_id": "gid://shopify/Order/710",
+                "amount": "25.00",
+                "currency": self.currency.name,
+                "status": "UNDER_REVIEW",
+                "type": "CHARGEBACK",
+                "reason": "FRAUDULENT",
+                "network_reason_code": "4827",
+                "initiated_at": "2026-07-20T00:30:00Z",
+                "evidence_due_by": None,
+                "evidence_sent_on": None,
+                "finalized_on": None,
+                "raw": {},
+            }
+        )
+
+        with patch.object(type(self.instance), "_payments_page", autospec=True) as page:
+            page.return_value = ({"activated": True}, [])
+            self.instance._import_disputes("2026-08-20", "2026-08-27")
+
+        self.assertEqual(
+            page.call_args.args[2],
+            {"query": "initiated_at:>=2026-07-19 initiated_at:<=2026-08-27"},
+        )
+
     def test_entry_planning_boundaries_preserve_error_state(self):
         payout = self._payout(706)
 
