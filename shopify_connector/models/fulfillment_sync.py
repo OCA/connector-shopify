@@ -329,7 +329,11 @@ class ShopifyOrderFulfillmentSync(models.Model):
         needs = self.env["shopify.fulfillment"]._external_line_needs(sale_line, 1)
         delivered = defaultdict(float)
         for move in moves:
-            delivered[move.product_id] += move.quantity
+            # A kit component moves in the unit of its BoM line, and the needs
+            # are in the unit of the product.
+            delivered[move.product_id] += move.product_uom._compute_quantity(
+                move.quantity, move.product_id.uom_id
+            )
         kits = min(
             (delivered[product] / need for product, need in needs.items() if need),
             default=0,
