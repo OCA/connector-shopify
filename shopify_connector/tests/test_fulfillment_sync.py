@@ -805,22 +805,19 @@ class TestShopifyFulfillmentSync(TransactionCase):
             )
         )
 
-    def test_kit_delivery_is_sent_as_kits_of_its_order_line(self):
-        products = {}
-        for name in ("Kit", "Widget", "Gadget"):
-            products[name] = self.env["product.product"].create(
-                {
-                    "name": f"Delivered {name}",
-                    "type": "consu",
-                    "is_storable": name != "Kit",
-                    "company_id": self.instance.company_id.id,
-                }
-            )
-        kit, widget, gadget = products["Kit"], products["Widget"], products["Gadget"]
+    def _kit_line(self, quantity, number):
+        """A bound sale line of a kit product, for the moves of its components."""
+        kit = self.env["product.product"].create(
+            {
+                "name": f"Delivered Kit {number}",
+                "type": "consu",
+                "company_id": self.instance.company_id.id,
+            }
+        )
         kit_template = self.env["shopify.product.template"].create(
             {
                 "instance_id": self.instance.id,
-                "shopify_id": "gid://shopify/Product/630",
+                "shopify_id": f"gid://shopify/Product/{number}0",
                 "odoo_id": kit.product_tmpl_id.id,
                 "status": "ACTIVE",
                 "state": "synced",
@@ -829,7 +826,7 @@ class TestShopifyFulfillmentSync(TransactionCase):
         kit_variant = self.env["shopify.product.variant"].create(
             {
                 "instance_id": self.instance.id,
-                "shopify_id": "gid://shopify/ProductVariant/631",
+                "shopify_id": f"gid://shopify/ProductVariant/{number}1",
                 "template_binding_id": kit_template.id,
                 "odoo_id": kit.id,
                 "state": "synced",
@@ -839,20 +836,36 @@ class TestShopifyFulfillmentSync(TransactionCase):
             {
                 "order_id": self.sale.id,
                 "product_id": kit.id,
-                "product_uom_qty": 3,
+                "product_uom_qty": quantity,
                 "price_unit": 30,
             }
         )
         kit_line_binding = self.env["shopify.order.line"].create(
             {
                 "instance_id": self.instance.id,
-                "shopify_id": "gid://shopify/LineItem/632",
+                "shopify_id": f"gid://shopify/LineItem/{number}2",
                 "order_binding_id": self.order_binding.id,
                 "odoo_id": kit_line.id,
                 "variant_shopify_id": kit_variant.shopify_id,
                 "state": "synced",
             }
         )
+        return kit_line, kit_line_binding, kit_variant
+
+    def _component(self, name):
+        return self.env["product.product"].create(
+            {
+                "name": f"Delivered {name}",
+                "type": "consu",
+                "is_storable": True,
+                "company_id": self.instance.company_id.id,
+            }
+        )
+
+    def test_kit_delivery_is_sent_as_kits_of_its_order_line(self):
+        kit_line, kit_line_binding, kit_variant = self._kit_line(3, 63)
+        kit = kit_line.product_id
+        widget, gadget = self._component("Widget"), self._component("Gadget")
         for product, quantity in ((self.product, 1), (widget, 3), (gadget, 6)):
             self.env["stock.quant"]._update_available_quantity(
                 product, self.warehouse.lot_stock_id, quantity
@@ -909,4 +922,42 @@ class TestShopifyFulfillmentSync(TransactionCase):
         self.assertEqual(
             [(move["line_id"], move["quantity"]) for move in moves],
             [(kit_line_binding.shopify_id, 1)],
+        )
+
+    def test_kit_component_in_another_unit_is_counted_in_its_own_unit(self):
+        # The BoM line counts the screws in dozens, the product in units.
+        kit_line, kit_line_binding, kit_variant = self._kit_line(2, 64)
+        screw = self._component("Screw")
+        dozen = self.env.ref("uom.product_uom_dozen")
+        for product, quantity in ((self.product, 1), (screw, 24)):
+            self.env["stock.quant"]._update_available_quantity(
+                product, self.warehouse.lot_stock_id, quantity
+            )
+        self.sale.action_confirm()
+        picking = self.sale.picking_ids
+        kit_move = picking.move_ids.filtered(
+            lambda move: move.product_id == kit_line.product_id
+        )
+        kit_move.copy(
+            {
+                "product_id": screw.id,
+                "product_uom": dozen.id,
+                "product_uom_qty": 2,
+                "sale_line_id": kit_line.id,
+            }
+        )._action_confirm()
+        kit_move._action_cancel()
+        kit_move.unlink()
+        picking.action_assign()
+        for move in picking.move_ids:
+            move.quantity = move.product_uom_qty
+        picking.move_ids.picked = True
+        picking.with_context(skip_shopify_fulfillment_push=True)._action_done()
+        self.assertEqual(picking.state, "done")
+
+        moves = self.order_binding._fulfillment_allocation_input(picking)
+
+        self.assertIn(
+            (kit_line_binding.shopify_id, kit_variant.shopify_id, 2),
+            [(move["line_id"], move["variant_id"], move["quantity"]) for move in moves],
         )
