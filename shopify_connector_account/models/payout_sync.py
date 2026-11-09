@@ -477,10 +477,10 @@ class ShopifyInstancePayoutSync(models.Model):
             limit=1,
         )
         if date_from and oldest_open:
-            date_from = min(
-                str(date_from)[:10],
-                fields.Date.to_string(oldest_open.initiated_at.date()),
-            )
+            # Shopify can read the date in the shop's time zone, which can be
+            # a day before the UTC day. Start one day earlier to include it.
+            reach_back = oldest_open.initiated_at.date() - timedelta(days=1)
+            date_from = min(str(date_from)[:10], fields.Date.to_string(reach_back))
         account, payloads = self._payments_page(
             SHOPIFY_PAYMENTS_DISPUTES_QUERY,
             {"query": _date_query("initiated_at", date_from, date_to)},
