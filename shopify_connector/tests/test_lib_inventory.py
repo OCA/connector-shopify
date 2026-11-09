@@ -31,11 +31,19 @@ class TestShopifyLibInventory(TransactionCase):
         assert not should_ignore_echo(8, None, None, now=now)
 
     def test_quantity_basis_selection_and_rounding(self):
-        assert quantity_for_basis(3.6, 8.2, "free_qty") == 4
+        assert quantity_for_basis(3.6, 8.2, "free_qty") == 3
         assert quantity_for_basis(3.6, 8.2, "qty_available") == 8
         assert quantity_for_basis(-1.5, 0, "free_qty") == -2
         with self.assertRaises(ValueError):
             quantity_for_basis(1, 2, "forecast")
+
+    def test_fractional_quantity_rounds_down(self):
+        # Shopify must never show more than Odoo has, so a part unit is dropped.
+        assert quantity_for_basis(2.5, 0, "free_qty") == 2
+        assert quantity_for_basis(0.5, 0, "free_qty") == 0
+        assert quantity_for_basis(2.999, 0, "free_qty") == 2
+        assert quantity_for_basis(3.0, 0, "free_qty") == 3
+        assert quantity_for_basis(-0.5, 0, "free_qty") == -1
 
     def test_negative_policy_and_compare_payload(self):
         assert apply_negative_policy(-3, False) == (0, True)
