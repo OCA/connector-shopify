@@ -601,9 +601,9 @@ class TestShopifyInstanceClientCredentials(TransactionCase):
             self.enter_registry_test_mode(),
             self._patch_the_lock_timing_out(),
             self._patch_token_request() as request_token,
+            self.assertRaises(UserError),
         ):
-            with self.assertRaises(UserError):
-                self.instance._shopify_access_token()
+            self.instance._shopify_access_token()
 
         request_token.assert_not_called()
         self.assertEqual(self.instance.access_token, "shpat-expired")

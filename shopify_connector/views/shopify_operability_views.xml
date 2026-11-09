@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
     <record id="shopify_binding_state_search_base" model="ir.ui.view">
         <field name="name">shopify.binding.state.search.base</field>

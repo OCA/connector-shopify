@@ -516,15 +516,17 @@ class TestShopifyProductSync(TransactionCase):
         """A conflict with a parallel job is retried, not recorded as failed."""
         binding_model = self.env["shopify.product.template"]
         payload = self._product_payload_for_import_error()
-        with patch.object(
-            type(binding_model),
-            "_apply_product_import",
-            side_effect=psycopg2.errors.SerializationFailure("concurrent update"),
+        with (
+            patch.object(
+                type(binding_model),
+                "_apply_product_import",
+                side_effect=psycopg2.errors.SerializationFailure("concurrent update"),
+            ),
+            self.assertRaises(psycopg2.errors.SerializationFailure),
         ):
-            with self.assertRaises(psycopg2.errors.SerializationFailure):
-                binding_model._job_import_product(
-                    self.instance.id, payload, payload_normalized=True
-                )
+            binding_model._job_import_product(
+                self.instance.id, payload, payload_normalized=True
+            )
         binding = binding_model.search([("shopify_id", "=", payload["id"])])
         self.assertNotEqual(binding.state, "error")
 

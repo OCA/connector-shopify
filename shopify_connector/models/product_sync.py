@@ -945,9 +945,7 @@ class ShopifyProductTemplateSync(models.Model):
             combination = self.env["product.template.attribute.value"]
             for option in selected_options:
                 line = template.attribute_line_ids.filtered(
-                    lambda item, option=option: (
-                        item.attribute_id.name == option["name"]
-                    )
+                    lambda item, option=option: item.attribute_id.name == option["name"]
                 )[:1]
                 template_value = line.product_template_value_ids.filtered(
                     lambda item, option=option: item.name == option["value"]
@@ -1707,7 +1705,7 @@ class ShopifyProductTemplateSync(models.Model):
         raw = base64.b64decode(encoded)
         return hashlib.sha256(raw).hexdigest()
 
-    def _update_export_bindings(  # noqa: C901
+    def _update_export_bindings(
         self, instance, template, binding, product, file_targets
     ):
         normalized = normalize_product_payload(product)

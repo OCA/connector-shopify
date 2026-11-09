@@ -1,11 +1,11 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <odoo noupdate="1">
     <record id="ir_cron_prune_shopify_logs" model="ir.cron">
         <field name="name">Shopify: Prune old synchronization logs</field>
         <field name="model_id" ref="model_shopify_log" />
         <field name="state">code</field>
         <field name="code">model._cron_prune()</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number" eval="1" />
         <field name="interval_type">days</field>
         <field name="active" eval="True" />
     </record>
@@ -15,7 +15,7 @@
         <field name="model_id" ref="model_shopify_webhook_event" />
         <field name="state">code</field>
         <field name="code">model._cron_prune()</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number" eval="1" />
         <field name="interval_type">days</field>
         <field name="active" eval="True" />
     </record>
@@ -25,7 +25,7 @@
         <field name="model_id" ref="model_shopify_instance" />
         <field name="state">code</field>
         <field name="code">model._cron_retest_connections()</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number" eval="1" />
         <field name="interval_type">hours</field>
         <field name="active" eval="True" />
     </record>
@@ -35,7 +35,7 @@
         <field name="model_id" ref="model_shopify_instance" />
         <field name="state">code</field>
         <field name="code">model._cron_reconcile_products()</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number" eval="1" />
         <field name="interval_type">days</field>
         <field name="active" eval="True" />
     </record>
@@ -45,7 +45,7 @@
         <field name="model_id" ref="model_shopify_instance" />
         <field name="state">code</field>
         <field name="code">model._cron_reconcile_inventory()</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number" eval="1" />
         <field name="interval_type">days</field>
         <field name="active" eval="True" />
     </record>
@@ -55,7 +55,7 @@
         <field name="model_id" ref="model_shopify_instance" />
         <field name="state">code</field>
         <field name="code">model._cron_reconcile_orders()</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number" eval="1" />
         <field name="interval_type">days</field>
         <field name="active" eval="True" />
     </record>
@@ -65,7 +65,7 @@
         <field name="model_id" ref="model_shopify_instance" />
         <field name="state">code</field>
         <field name="code">model._cron_reconcile_customers()</field>
-        <field name="interval_number">1</field>
+        <field name="interval_number" eval="1" />
         <field name="interval_type">weeks</field>
         <field name="active" eval="True" />
     </record>

@@ -274,7 +274,7 @@ class ShopifyInstanceWizard(models.TransientModel):
         created = 0
         for tax in taxes:
             rate = format(
-                (Decimal(str(tax.amount)) / Decimal("100")).normalize(),
+                (Decimal(str(tax.amount)) / Decimal(100)).normalize(),
                 "f",
             )
             domain = [

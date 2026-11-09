@@ -306,10 +306,10 @@ DRAFT_ORDER_BY_ID_QUERY = (
 )
 
 __all__ = [
-    "DRAFT_ORDER_BY_ID_QUERY",
     "DRAFT_ORDERS_QUERY",
-    "ORDER_BY_ID_QUERY",
+    "DRAFT_ORDER_BY_ID_QUERY",
     "ORDERS_UPDATED_QUERY",
+    "ORDER_BY_ID_QUERY",
     "REFUND_BY_ID_QUERY",
     "RETURN_BY_ID_QUERY",
     "orders_bulk_query",

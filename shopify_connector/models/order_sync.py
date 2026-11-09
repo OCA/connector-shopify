@@ -930,9 +930,9 @@ class ShopifyOrderSync(models.Model):
             ) * quantity - decimal_amount(selected_total["amount"])
             original_total = decimal_amount(selected_unit["amount"]) * quantity
             discount_percent = (
-                discount_amount * Decimal("100") / original_total
+                discount_amount * Decimal(100) / original_total
                 if original_total
-                else Decimal("0")
+                else Decimal(0)
             )
             line_values = {
                 "order_id": sale_order.id,
@@ -1023,9 +1023,9 @@ class ShopifyOrderSync(models.Model):
             original_amount = decimal_amount(selected_original["amount"])
             discounted_amount = decimal_amount(selected["amount"])
             discount_percent = (
-                (original_amount - discounted_amount) * Decimal("100") / original_amount
+                (original_amount - discounted_amount) * Decimal(100) / original_amount
                 if original_amount
-                else Decimal("0")
+                else Decimal(0)
             )
             taxes = self._mapped_taxes(
                 instance,
@@ -1161,7 +1161,7 @@ class ShopifyOrderSync(models.Model):
         expected = self._shopify_expected_order_total(instance, order_data)
         difference = _exact_difference(sale_order.amount_total, expected)
         rounding = Decimal(str(currency.rounding))
-        if difference >= rounding / Decimal("2"):
+        if difference >= rounding / Decimal(2):
             raise ShopifyOrderImportError(
                 self.env._(
                     "Order total mismatch: Odoo %(odoo)s, Shopify %(shopify)s, "
@@ -1205,8 +1205,9 @@ class ShopifyOrderSync(models.Model):
             sale_order.picking_ids.write({"shopify_risk_hold": True})
         if high_risk:
             if not sale_order.activity_ids.filtered(
-                lambda activity: activity.summary
-                == self.env._("Shopify high-risk order")
+                lambda activity: (
+                    activity.summary == self.env._("Shopify high-risk order")
+                )
             ):
                 sale_order.activity_schedule(
                     "mail.mail_activity_data_todo",
@@ -1354,7 +1355,7 @@ class ShopifyOrderSync(models.Model):
 
     def _after_shopify_gateway_payment(self, gateway_payment, transaction, invoice):
         """Extension hook for optional financial modules."""
-        return None
+        return
 
     def _apply_refunds(self, binding, order_data):
         for refund in order_data["refunds"]:
@@ -1617,7 +1618,7 @@ class ShopifyOrderSync(models.Model):
             )
         if _exact_difference(move.amount_total, refund_amount) >= Decimal(
             str(move.currency_id.rounding)
-        ) / Decimal("2"):
+        ) / Decimal(2):
             raise ShopifyOrderImportError(
                 self.env._(
                     "Credit-note total does not match Shopify refund %(refund)s.",

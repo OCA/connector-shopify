@@ -31,7 +31,7 @@ def decimal_amount(value: Any) -> Decimal:
     if isinstance(value, Decimal):
         return value
     if value in (None, ""):
-        return Decimal("0")
+        return Decimal(0)
     try:
         return Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:
@@ -197,7 +197,7 @@ def _normalise_line(payload: dict[str, Any], currency: str) -> dict[str, Any]:
                     decimal_amount(item["amount"][side]["amount"])
                     for item in discount_allocations
                 ),
-                Decimal("0"),
+                Decimal(0),
             )
             discounted_total[side] = {
                 "amount": format(amount, "f"),
@@ -878,14 +878,14 @@ def allocate_amount(total: Any, weights: Iterable[Any], quantum: Any) -> list[De
     """Allocate exactly using largest remainders, including negative totals."""
     amount = decimal_amount(total)
     unit = decimal_amount(quantum)
-    values = [max(decimal_amount(weight), Decimal("0")) for weight in weights]
+    values = [max(decimal_amount(weight), Decimal(0)) for weight in weights]
     if unit <= 0:
         raise ValueError("Allocation quantum must be positive.")
     if not values:
         return []
     if not any(values):
-        values = [Decimal("1")] * len(values)
-    sign = Decimal("-1") if amount < 0 else Decimal("1")
+        values = [Decimal(1)] * len(values)
+    sign = Decimal(-1) if amount < 0 else Decimal(1)
     positive = abs(amount)
     total_weight = sum(values)
     exact = [positive * weight / total_weight for weight in values]

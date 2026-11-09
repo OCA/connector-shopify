@@ -22,7 +22,7 @@ def quantity_for_basis(
     value = free_qty if basis == "free_qty" else qty_available
     # Drop float noise first, so a sum such as 2.9999999999999996 stays 3.
     quantity = Decimal(str(value or 0)).quantize(Decimal("0.000001"), ROUND_HALF_UP)
-    return int(quantity.quantize(Decimal("1"), ROUND_FLOOR))
+    return int(quantity.quantize(Decimal(1), ROUND_FLOOR))
 
 
 def apply_negative_policy(quantity: int, allow_negative: bool) -> tuple[int, bool]:

@@ -1800,9 +1800,11 @@ class QueueJobShopifyFulfillmentFailure(models.Model):
             # The job runner stores the failure in a new transaction, after
             # the job's own changes were rolled back.
             for job in self.filtered(
-                lambda item: item.model_name == "shopify.order"
-                and item.method_name == "_job_push_picking_fulfillment"
-                and item.args
+                lambda item: (
+                    item.model_name == "shopify.order"
+                    and item.method_name == "_job_push_picking_fulfillment"
+                    and item.args
+                )
             ):
                 for binding in job.records.exists():
                     binding._report_fulfillment_push_failure(
