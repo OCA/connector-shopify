@@ -31,7 +31,7 @@ def decimal_amount(value: Any) -> Decimal:
     if isinstance(value, Decimal):
         return value
     if value in (None, ""):
-        return Decimal("0")
+        return Decimal(0)
     try:
         return Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:
@@ -56,8 +56,8 @@ def _money(value: Any, fallback_currency: str = "") -> dict[str, str]:
 def normalize_payout(payload: dict[str, Any]) -> dict[str, Any]:
     net = _money(payload.get("net"))
     summary = payload.get("summary") or {}
-    gross = Decimal("0")
-    fees = Decimal("0")
+    gross = Decimal(0)
+    fees = Decimal(0)
     for name, value in summary.items():
         amount = decimal_amount(_money(value, net["currency"])["amount"])
         lowered = str(name).lower()
@@ -155,8 +155,8 @@ def _line(
         "role": role,
         "account": account,
         "name": name,
-        "debit": format(max(balance, Decimal("0")), "f"),
-        "credit": format(max(-balance, Decimal("0")), "f"),
+        "debit": format(max(balance, Decimal(0)), "f"),
+        "credit": format(max(-balance, Decimal(0)), "f"),
         "balance": format(balance, "f"),
         "amount_currency": format(amount_currency, "f"),
         "currency": currency,
@@ -178,7 +178,7 @@ def plan_payout_entry(
     company_currency = str(company_currency or "").upper()
     rounding = decimal_amount(quantum)
     payout_net = decimal_amount(payout.get("net"))
-    transaction_net = Decimal("0")
+    transaction_net = Decimal(0)
     for transaction in transactions:
         if str(transaction.get("currency") or "").upper() != payout_currency:
             raise PayoutPlanningError(
@@ -267,7 +267,7 @@ def plan_payout_entry(
                 account=fx_account,
                 name="Shopify payout currency difference",
                 balance=fx_balance,
-                amount_currency=Decimal("0"),
+                amount_currency=Decimal(0),
                 currency=company_currency,
             )
         )

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
     <record id="job_payout_import" model="queue.job.function">
         <field name="name">&lt;shopify.instance&gt;._job_import_payouts</field>
