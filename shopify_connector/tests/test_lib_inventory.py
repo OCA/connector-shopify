@@ -45,6 +45,11 @@ class TestShopifyLibInventory(TransactionCase):
         assert quantity_for_basis(3.0, 0, "free_qty") == 3
         assert quantity_for_basis(-0.5, 0, "free_qty") == -1
 
+    def test_float_noise_does_not_lose_a_unit(self):
+        # free_qty is a sum of floats, so a stock of 3 can arrive as 2.9999999999999996.
+        assert quantity_for_basis(2.9999999999999996, 0, "free_qty") == 3
+        assert quantity_for_basis(-2.0000000000000004, 0, "free_qty") == -2
+
     def test_negative_policy_and_compare_payload(self):
         assert apply_negative_policy(-3, False) == (0, True)
         assert apply_negative_policy(-3, True) == (-3, False)
