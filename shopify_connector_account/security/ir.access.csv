@@ -1,0 +1,4 @@
+id,name,model_id,group_id/id,operation,domain
+shopify_payout_company_rule,Shopify payouts by company,shopify.payout,shopify_connector.group_shopify_manager,crud,"[('company_id', 'in', company_ids)]"
+shopify_payout_transaction_company_rule,Shopify payout transactions by company,shopify.payout.transaction,shopify_connector.group_shopify_manager,crud,"[('company_id', 'in', company_ids)]"
+shopify_dispute_company_rule,Shopify disputes by company,shopify.dispute,shopify_connector.group_shopify_manager,crud,"[('company_id', 'in', company_ids)]"
