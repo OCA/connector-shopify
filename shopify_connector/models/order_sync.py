@@ -278,6 +278,79 @@ class ShopifyInstanceOrderSync(models.Model):
 class ShopifyOrderSync(models.Model):
     _inherit = "shopify.order"
 
+    def action_mark_handled(self):
+        """Accept the Shopify change of a delivered order handled by hand.
+
+        Shopify changed or cancelled an order that Odoo already delivered,
+        so the import stopped for manual resolution. A person handled it in
+        Odoo (a return, a credit note). Store the Shopify state they accepted
+        and mark its refunds synced, so later imports apply only new changes.
+        """
+        for binding in self:
+            if (
+                binding.state != "error"
+                or not binding.odoo_id
+                or not self._is_delivered(binding.odoo_id)
+                or not binding.raw_payload
+            ):
+                raise UserError(
+                    self.env._(
+                        "Only a Shopify order in error with a delivered sales "
+                        "order can be marked as handled."
+                    )
+                )
+            order_data = normalize_order_payload(
+                binding.raw_payload, is_draft=binding.is_draft
+            )
+            binding.write(
+                {
+                    "handled_state": {
+                        "lines": [
+                            {"id": line["id"], "quantity": line["quantity"]}
+                            for line in order_data["lines"]
+                        ],
+                        "cancelled": bool(order_data["cancelled_at"]),
+                    },
+                    "handled_date": fields.Datetime.now(),
+                    "handled_uid": self.env.uid,
+                }
+            )
+            # The refunds were handled by hand. A refund that failed is not
+            # stored yet, so create it already synced.
+            refunds = self.env["shopify.refund"]
+            for refund in order_data["refunds"]:
+                if not refund["id"]:
+                    continue
+                existing = refunds.search(
+                    [
+                        ("instance_id", "=", binding.instance_id.id),
+                        ("shopify_id", "=", refund["id"]),
+                    ],
+                    limit=1,
+                )
+                if not existing:
+                    refunds.create(
+                        {
+                            "instance_id": binding.instance_id.id,
+                            "shopify_id": refund["id"],
+                            "order_binding_id": binding.id,
+                            "note": refund["note"],
+                            "created_at": _utc_datetime(refund["created_at"]),
+                            "raw_payload": refund,
+                            "state": "synced",
+                        }
+                    )
+            binding.refund_binding_ids.filtered(
+                lambda refund: refund.state != "synced"
+            ).write({"state": "synced", "error_message": False})
+        return self.action_retry_sync()
+
+    def _delivered_line_snapshot(self, binding, sale_order):
+        """Return the lines that Shopify's lines must match after delivery."""
+        if binding.handled_state:
+            return binding.handled_state["lines"]
+        return self._existing_line_snapshot(binding, sale_order)
+
     @api.model
     def _job_import_order_from_api(self, instance_id, order_id, webhook_payload=None):
         instance = self.env["shopify.instance"].sudo().browse(instance_id).exists()
@@ -561,9 +634,10 @@ class ShopifyOrderSync(models.Model):
             # order to 0. Keep the lines: Odoo does not remove the lines of a
             # confirmed order, and _apply_state cancels the order.
             return sale_order
+        keep_lines = False
         if sale_order and self._is_delivered(sale_order):
             differences = line_diffs(
-                self._existing_line_snapshot(binding, sale_order),
+                self._delivered_line_snapshot(binding, sale_order),
                 [
                     {"id": line["id"], "quantity": line["quantity"]}
                     for line in order_data["lines"]
@@ -576,6 +650,9 @@ class ShopifyOrderSync(models.Model):
                         "manual resolution is required."
                     )
                 )
+            # A person handled this Shopify state by hand. Keep the Odoo
+            # lines as they made them and only update the order header.
+            keep_lines = bool(binding.handled_state)
         currency = self._currency(instance, order_data)
         partner = self._partner(instance, order_data)
         pricelist = self._pricelist(instance, currency)
@@ -639,6 +716,8 @@ class ShopifyOrderSync(models.Model):
                 .create(values)
             )
         binding.odoo_id = sale_order
+        if keep_lines:
+            return sale_order
         self._apply_lines(binding, sale_order, instance, order_data)
         self._verify_total(sale_order, currency, instance, order_data)
         return sale_order
@@ -1193,6 +1272,9 @@ class ShopifyOrderSync(models.Model):
             }
         )
         if order_data["cancelled_at"]:
+            if (binding.handled_state or {}).get("cancelled"):
+                # A person handled this cancellation by hand after delivery.
+                return
             if self._is_delivered(sale_order):
                 raise ShopifyOrderImportError(
                     self.env._("Shopify cancelled an order already delivered in Odoo.")
