@@ -288,6 +288,13 @@ class ShopifyCarrierMapping(models.Model):
         required=True,
         help="Company string sent in Shopify tracking information.",
     )
+    shipping_method_names = fields.Char(
+        string="Shopify Shipping Methods",
+        help="Names of the Shopify shipping methods that this carrier delivers, "
+        "separated by commas (e.g. Standard, Express). An imported order with "
+        "one of these shipping methods gets this carrier on the order and its "
+        "delivery. Upper and lower case do not matter.",
+    )
 
     _instance_carrier_unique = models.Constraint(
         "UNIQUE(instance_id, carrier_id)",
@@ -302,6 +309,14 @@ class ShopifyCarrierMapping(models.Model):
                     self.env["delivery.carrier"].browse(values["carrier_id"]).name
                 )
         return super().create(vals_list)
+
+    def _shipping_method_name_set(self):
+        self.ensure_one()
+        return {
+            name.strip().casefold()
+            for name in (self.shipping_method_names or "").split(",")
+            if name.strip()
+        }
 
     @api.constrains("instance_id", "carrier_id")
     def _check_carrier_company(self):
