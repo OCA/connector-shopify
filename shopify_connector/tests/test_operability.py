@@ -235,3 +235,19 @@ class TestShopifyErrorOperations(TransactionCase):
             )
         )
         self.assertEqual(len(jobs), 1)
+
+    def test_dashboard_finds_webhooks_by_their_delivered_topic(self):
+        self.env["shopify.webhook.event"].create(
+            {
+                "instance_id": self.instance.id,
+                "webhook_id": "dashboard-topic-1",
+                "topic": "customers/create",
+                "payload": {"id": 1},
+            }
+        )
+
+        summary = self.instance._dashboard_webhook_summary()
+
+        self.assertIn("customers/create: ", summary)
+        self.assertNotIn("customers/create: never", summary)
+        self.assertIn("orders/create: never", summary)

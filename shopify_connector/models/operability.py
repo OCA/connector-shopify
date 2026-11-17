@@ -8,6 +8,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from ..graphql import WEBHOOK_SUBSCRIPTIONS_QUERY
 from ..lib.operability import state_count_label
+from ..lib.webhook import webhook_topic_header
 
 BINDING_DASHBOARD_MODELS = (
     ("Products", "shopify.product.template"),
@@ -351,10 +352,13 @@ class ShopifyInstanceOperability(models.Model):
             remote = self.env._("Remote subscriptions: healthy")
         lines = [remote]
         for topic in self._required_webhook_topics():
+            # Events store the topic as Shopify delivers it (customers/create),
+            # not as the subscription enum (CUSTOMERS_CREATE).
+            header = webhook_topic_header(topic)
             event = event_model.search(
                 [
                     ("instance_id", "=", self.id),
-                    ("topic", "=", topic),
+                    ("topic", "in", [header, topic]),
                 ],
                 order="create_date desc",
                 limit=1,
@@ -364,7 +368,7 @@ class ShopifyInstanceOperability(models.Model):
                 if event
                 else self.env._("never")
             )
-            lines.append(f"{topic}: {received}")
+            lines.append(f"{header}: {received}")
         return "\n".join(lines)
 
     def action_check_webhook_health(self):
