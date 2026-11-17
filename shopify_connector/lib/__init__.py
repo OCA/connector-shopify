@@ -107,9 +107,15 @@ __all__ = [
     "verify_webhook_hmac",
     "webhook_topic_header",
 ]
-from .operability import missing_scopes, scope_handles, state_count_label
+from .operability import (
+    identity_key_pattern,
+    missing_scopes,
+    scope_handles,
+    state_count_label,
+)
 
 __all__ = [
+    "identity_key_pattern",
     "missing_scopes",
     "scope_handles",
     "state_count_label",

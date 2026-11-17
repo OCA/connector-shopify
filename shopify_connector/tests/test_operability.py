@@ -2,6 +2,8 @@ from unittest.mock import Mock, patch
 
 from odoo.tests.common import TransactionCase
 
+from odoo.addons.queue_job.job import Job
+
 from ..models.instance import REQUIRED_WEBHOOK_TOPICS
 from ..wizards.onboarding import REQUIRED_ADMIN_SCOPES
 
@@ -165,6 +167,75 @@ class TestShopifyErrorOperations(TransactionCase):
         )
         cls.instance.state = "connected"
 
+    def test_dashboard_counts_the_failed_jobs_of_the_store(self):
+        instance = self.instance.with_company(self.instance.company_id)
+        job = Job(
+            instance._job_import_locations,
+            channel="root.shopify.import",
+            identity_key=f"shopify.inventory.locations.{instance.id}",
+        )
+        job.set_failed(exc_message="Field 'isActive' doesn't exist")
+        job.store()
+
+        self.instance.invalidate_recordset(["dashboard_failed_jobs"])
+        self.assertEqual(self.instance.dashboard_failed_jobs, 1)
+        action = self.instance.action_open_failed_jobs()
+        self.assertEqual(action["res_model"], "queue.job")
+        self.assertEqual(
+            self.env["queue.job"].search(action["domain"]), job.db_record()
+        )
+
+    def test_dashboard_leaves_out_the_failed_jobs_of_other_stores(self):
+        other = self.env["shopify.instance"].create(
+            {
+                "name": "Other Operations Shop",
+                "shop_url": "other-operations-shop.myshopify.com",
+                "access_token": "token",
+                "webhook_secret": "secret",
+            }
+        )
+        other = other.with_company(other.company_id)
+        # Keys of the other store whose later IDs equal this store's.
+        for key in (
+            f"shopify.customer.export.{other.id}.{self.instance.id}",
+            f"shopify.inventory.delta.{other.id}.{self.instance.id}.7",
+        ):
+            job = Job(
+                other._job_import_locations,
+                channel="root.shopify.import",
+                identity_key=key,
+            )
+            job.set_failed(exc_message="Throttled")
+            job.store()
+
+        self.instance.invalidate_recordset(["dashboard_failed_jobs"])
+        self.assertEqual(self.instance.dashboard_failed_jobs, 0)
+        action = self.instance.action_open_failed_jobs()
+        self.assertFalse(self.env["queue.job"].search(action["domain"]))
+
+    def test_dashboard_backlog_counts_only_the_jobs_of_the_store(self):
+        other = self.env["shopify.instance"].create(
+            {
+                "name": "Other Backlog Shop",
+                "shop_url": "other-backlog-shop.myshopify.com",
+                "access_token": "token",
+                "webhook_secret": "secret",
+            }
+        )
+        instance = self.instance.with_company(self.instance.company_id)
+        for store, key in (
+            (instance, f"shopify.inventory.locations.{instance.id}"),
+            (other, f"shopify.customer.export.{other.id}.{instance.id}"),
+        ):
+            Job(
+                store.with_company(store.company_id)._job_import_locations,
+                channel="root.shopify.import",
+                identity_key=key,
+            ).store()
+
+        self.instance.invalidate_recordset(["dashboard_queue_backlog"])
+        self.assertEqual(self.instance.dashboard_queue_backlog, 1)
+
     def test_mass_retry_resets_and_enqueues_fresh_identity(self):
         partner = self.env["res.partner"].create(
             {
@@ -194,7 +265,8 @@ class TestShopifyErrorOperations(TransactionCase):
                     (
                         "identity_key",
                         "=like",
-                        f"shopify.retry.shopify.customer.{binding.id}.%",
+                        f"shopify.retry.shopify.customer.{self.instance.id}."
+                        f"{binding.id}.%",
                     )
                 ]
             )
