@@ -108,6 +108,7 @@ __all__ = [
 ]
 from .operability import (
     REQUIRED_ADMIN_SCOPES,
+    identity_key_pattern,
     missing_scopes,
     scope_handles,
     state_count_label,
@@ -115,6 +116,7 @@ from .operability import (
 
 __all__ = [
     "REQUIRED_ADMIN_SCOPES",
+    "identity_key_pattern",
     "missing_scopes",
     "scope_handles",
     "state_count_label",
