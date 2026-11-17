@@ -92,7 +92,41 @@ class ShopifyOrderFulfillmentSync(models.Model):
                     f"{binding.instance_id.id}.{binding.shopify_id}"
                 ),
             )._job_refresh_fulfillment_orders()
+            binding._queue_missed_fulfillment_pushes()
         return result
+
+    def _queue_missed_fulfillment_pushes(self):
+        """Queue the push of done deliveries that were never sent to Shopify.
+
+        A delivery validated while this order was in error queued no push,
+        and nothing else sends it later. Queue it once the order imports
+        again.
+        """
+        self.ensure_one()
+        if self.env.context.get("skip_shopify_fulfillment_push"):
+            return
+        summary = self._fulfillment_push_failed_summary()
+        pickings = self.odoo_id.picking_ids.sudo().filtered(
+            lambda item: (
+                item.state == "done" and item.picking_type_id.code == "outgoing"
+            )
+        )
+        for picking in pickings:
+            # A delivery with a fulfillment, even a failed one, has its own
+            # retry. A failed push has an activity that says to requeue it.
+            if picking.shopify_fulfillment_ids.filtered(
+                lambda item: item.order_binding_id == self
+            ) or picking.activity_ids.filtered(
+                lambda activity: activity.summary == summary
+            ):
+                continue
+            self.with_delay(
+                description=self.env._("Push Shopify fulfillment for %s", picking.name),
+                identity_key=(
+                    f"shopify.fulfillment.push."
+                    f"{self.instance_id.id}.{self.id}.{picking.id}"
+                ),
+            )._job_push_picking_fulfillment(picking.id)
 
     def action_refresh_fulfillment_orders(self):
         for binding in self.filtered(lambda item: not item.is_draft):
