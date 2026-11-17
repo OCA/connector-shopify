@@ -84,6 +84,9 @@
                             />
                         </group>
                     </group>
+                    <group string="Last Error" invisible="state != 'error'">
+                        <field name="error_message" nolabel="1" readonly="1" />
+                    </group>
                     <group string="Shop Money">
                         <field name="shop_currency_id" readonly="1" />
                         <field name="shop_subtotal" readonly="1" />

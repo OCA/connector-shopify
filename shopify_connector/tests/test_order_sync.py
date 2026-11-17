@@ -1149,12 +1149,17 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
             )
             self.assertEqual(binding.handled_uid, self.env.user)
             self.assertEqual(binding.refund_binding_ids.state, "synced")
+            # The handled refund shows its amount, as an imported one does.
+            self.assertEqual(binding.refund_binding_ids.amount, "10.00")
+            self.assertEqual(binding.refund_binding_ids.currency_id, self.currency)
 
             result = self.order_model._job_import_order(self.instance.id, refunded)
             self.assertTrue(result, binding.error_message)
             self.assertEqual(binding.state, "synced")
             # The Odoo lines stay as the person left them.
             self.assertEqual(sale_order.order_line.product_uom_qty, 3)
+            # The line binding shows Shopify's current quantity.
+            self.assertEqual(binding.line_binding_ids.current_quantity, 2)
             self.assertEqual(len(binding.refund_binding_ids), 1)
 
             refunded["tags"] = ["web", "vip"]

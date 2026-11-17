@@ -336,6 +336,12 @@ class ShopifyOrderSync(models.Model):
                             "order_binding_id": binding.id,
                             "note": refund["note"],
                             "created_at": _utc_datetime(refund["created_at"]),
+                            # Show what was refunded, as a normal import does.
+                            "amount": format(
+                                self._shopify_refund_amount(binding, refund), "f"
+                            ),
+                            "currency_id": binding.order_currency_id.id
+                            or binding.odoo_id.currency_id.id,
                             "raw_payload": refund,
                             "state": "synced",
                         }
@@ -717,6 +723,13 @@ class ShopifyOrderSync(models.Model):
             )
         binding.odoo_id = sale_order
         if keep_lines:
+            # The sales order lines stay as the person made them, but the line
+            # bindings still show Shopify's current quantities and amounts.
+            line_bindings = {item.shopify_id: item for item in binding.line_binding_ids}
+            for line_data in order_data["lines"]:
+                line_binding = line_bindings.get(line_data["id"])
+                if line_binding:
+                    line_binding.write(self._line_binding_values(line_data))
             return sale_order
         self._apply_lines(binding, sale_order, instance, order_data)
         self._verify_total(sale_order, currency, instance, order_data)
@@ -1473,6 +1486,24 @@ class ShopifyOrderSync(models.Model):
             else:
                 model.create(values)
 
+    def _shopify_refund_amount(self, binding, refund):
+        """Return the refunded amount in the currency the store imports."""
+        selected_side = binding.instance_id.order_currency_policy == "presentment"
+        amount = decimal_amount(
+            selected_money(refund["total"], selected_side)["amount"]
+        )
+        if amount:
+            return amount
+        return sum(
+            decimal_amount(selected_money(line["subtotal"], selected_side)["amount"])
+            + decimal_amount(selected_money(line["tax"], selected_side)["amount"])
+            for line in refund["lines"]
+        ) + sum(
+            decimal_amount(selected_money(item["amount"], selected_side)["amount"])
+            + decimal_amount(selected_money(item["tax"], selected_side)["amount"])
+            for item in refund["adjustments"]
+        )
+
     def _apply_refund(self, binding, refund):
         if not refund["id"]:
             return
@@ -1486,21 +1517,7 @@ class ShopifyOrderSync(models.Model):
         if existing and existing.state == "synced":
             return
         selected_side = binding.instance_id.order_currency_policy == "presentment"
-        amount = decimal_amount(
-            selected_money(refund["total"], selected_side)["amount"]
-        )
-        if not amount:
-            amount = sum(
-                decimal_amount(
-                    selected_money(line["subtotal"], selected_side)["amount"]
-                )
-                + decimal_amount(selected_money(line["tax"], selected_side)["amount"])
-                for line in refund["lines"]
-            ) + sum(
-                decimal_amount(selected_money(item["amount"], selected_side)["amount"])
-                + decimal_amount(selected_money(item["tax"], selected_side)["amount"])
-                for item in refund["adjustments"]
-            )
+        amount = self._shopify_refund_amount(binding, refund)
         if not existing:
             existing = self.env["shopify.refund"].create(
                 {
