@@ -907,7 +907,7 @@ class ShopifyOrderSync(models.Model):
             line_binding = existing.get(line_data["id"])
             if line_data["quantity"] <= 0:
                 if line_binding:
-                    line_binding.odoo_id.unlink()
+                    self._remove_line(sale_order, line_binding)
                 continue
             product = self._line_product(instance, line_data)
             taxes = self._mapped_taxes(
@@ -971,8 +971,19 @@ class ShopifyOrderSync(models.Model):
             line_binding.write(self._line_binding_values(line_data))
         for identifier, line_binding in existing.items():
             if identifier not in incoming_ids and not line_binding.is_shipping:
-                line_binding.odoo_id.unlink()
+                self._remove_line(sale_order, line_binding)
         self._apply_shipping_lines(binding, sale_order, instance, order_data, country)
+
+    def _remove_line(self, sale_order, line_binding):
+        """Remove a line that Shopify refunded in full or no longer sends."""
+        if sale_order.state in ("draft", "sent"):
+            line_binding.odoo_id.unlink()
+            return
+        # Odoo does not delete a line of a confirmed order. Set its quantity
+        # to 0 instead, as Odoo asks, and keep the binding for later imports.
+        line_binding.odoo_id.with_context(shopify_order_import=True).write(
+            {"product_uom_qty": 0}
+        )
 
     def _line_binding_values(self, line_data):
         allocations = line_data["discount_allocations"]
