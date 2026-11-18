@@ -462,6 +462,12 @@ msgstr "Un'altra attività sta importando l'ordine Shopify %s."
 
 #. module: shopify_connector
 #. odoo-python
+#: code:addons/shopify_connector/models/customer_sync.py:0
+msgid "Another job is matching a contact for Shopify customer %s."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
 #: code:addons/shopify_connector/models/instance.py:0
 msgid ""
 "Another worker is renewing the Shopify access token of %s. Try again in a "
