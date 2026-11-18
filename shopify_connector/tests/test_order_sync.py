@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 from freezegun import freeze_time
 
 from odoo import SUPERUSER_ID
+from odoo.exceptions import UserError
 from odoo.sql_db import db_connect
 
 from odoo.addons.account.tests.common import AccountTestInvoicingCommon
@@ -1251,3 +1252,92 @@ class TestShopifyOrderSync(AccountTestInvoicingCommon):
 
         binding = self.order_model.browse(binding_id)
         self.assertEqual(binding.odoo_id.state, "cancel", binding.error_message)
+
+    def _delivered(self):
+        return patch.object(type(self.order_model), "_is_delivered", return_value=True)
+
+    def test_refund_after_delivery_marked_handled_is_not_applied_again(self):
+        binding = self.order_model.browse(
+            self.order_model._job_import_order(
+                self.instance.id, self._payload(order_id=98, quantity=3, total="30.00")
+            )
+        )
+        sale_order = binding.odoo_id
+        refunded = self._refunded_before_invoice_payload(98, refunded_quantity=1)
+        refunded["updatedAt"] = "2026-01-11T10:00:00Z"
+
+        with self._delivered():
+            with self.assertRaises(UserError):
+                binding.action_mark_handled()
+            self.assertFalse(
+                self.order_model._job_import_order(self.instance.id, refunded)
+            )
+            self.assertIn("manual resolution", binding.error_message)
+
+            with trap_jobs() as trap:
+                binding.action_mark_handled()
+            trap.assert_jobs_count(1)
+            self.assertEqual(
+                binding.handled_state,
+                {
+                    "lines": [{"id": "gid://shopify/LineItem/30", "quantity": 2}],
+                    "cancelled": False,
+                },
+            )
+            self.assertEqual(binding.handled_uid, self.env.user)
+            self.assertEqual(binding.refund_binding_ids.state, "synced")
+            # The handled refund shows its amount, as an imported one does.
+            self.assertEqual(binding.refund_binding_ids.amount, "10.00")
+            self.assertEqual(binding.refund_binding_ids.currency_id, self.currency)
+
+            result = self.order_model._job_import_order(self.instance.id, refunded)
+            self.assertTrue(result, binding.error_message)
+            self.assertEqual(binding.state, "synced")
+            # The Odoo lines stay as the person left them.
+            self.assertEqual(sale_order.order_line.product_uom_qty, 3)
+            # The line binding shows Shopify's current quantity.
+            self.assertEqual(binding.line_binding_ids.current_quantity, 2)
+            self.assertEqual(len(binding.refund_binding_ids), 1)
+
+            refunded["tags"] = ["web", "vip"]
+            refunded["updatedAt"] = "2026-01-12T10:00:00Z"
+            result = self.order_model._job_import_order(self.instance.id, refunded)
+            self.assertTrue(result, binding.error_message)
+            self.assertEqual(sale_order.shopify_tags, "web, vip")
+
+            # A new edit of the lines needs manual resolution again.
+            edited = self._refunded_before_invoice_payload(98, refunded_quantity=2)
+            edited["updatedAt"] = "2026-01-13T10:00:00Z"
+            self.assertFalse(
+                self.order_model._job_import_order(self.instance.id, edited)
+            )
+            self.assertIn("manual resolution", binding.error_message)
+            self.assertEqual(sale_order.order_line.product_uom_qty, 3)
+
+    def test_cancel_after_delivery_marked_handled_is_imported(self):
+        binding = self.order_model.browse(
+            self.order_model._job_import_order(
+                self.instance.id, self._payload(order_id=99)
+            )
+        )
+        sale_order = binding.odoo_id
+
+        with self._delivered():
+            self.assertFalse(
+                self.order_model._job_import_order(
+                    self.instance.id, self._cancelled_payload(order_id=99)
+                )
+            )
+            self.assertIn("already delivered", binding.error_message)
+            with trap_jobs():
+                binding.action_mark_handled()
+            self.assertTrue(binding.handled_state["cancelled"])
+
+            result = self.order_model._job_import_order(
+                self.instance.id, self._cancelled_payload(order_id=99)
+            )
+
+        self.assertTrue(result, binding.error_message)
+        self.assertEqual(binding.state, "synced")
+        self.assertNotEqual(sale_order.state, "cancel")
+        self.assertEqual(sale_order.order_line.product_uom_qty, 1)
