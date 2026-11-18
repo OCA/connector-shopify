@@ -1701,6 +1701,21 @@ msgid "Handle"
 msgstr ""
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_order__handled_uid
+msgid "Handled By"
+msgstr ""
+
+#. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_order__handled_date
+msgid "Handled On"
+msgstr ""
+
+#. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_order__handled_state
+msgid "Handled Shopify State"
+msgstr ""
+
+#. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_view_form
 msgid "Health"
 msgstr ""
@@ -2209,6 +2224,7 @@ msgstr ""
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_collection_view_form
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_order_view_form
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_product_template_view_form
 msgid "Last Error"
 msgstr ""
@@ -2426,6 +2442,23 @@ msgstr ""
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_location__is_mapped
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_location_view_search
 msgid "Mapped"
+msgstr ""
+
+#. module: shopify_connector
+#: model:ir.actions.server,name:shopify_connector.action_mark_handled_shopify_orders
+msgid "Mark Shopify Orders as Handled"
+msgstr ""
+
+#. module: shopify_connector
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_order_view_form
+msgid "Mark as Handled"
+msgstr ""
+
+#. module: shopify_connector
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_order_view_form
+msgid ""
+"Mark this Shopify change as handled by hand in Odoo? Later imports keep the "
+"current Odoo order lines and apply only new changes."
 msgstr ""
 
 #. module: shopify_connector
@@ -2782,6 +2815,14 @@ msgstr ""
 #. module: shopify_connector
 #: model:ir.model.fields.selection,name:shopify_connector.selection__shopify_order__source__online
 msgid "Online Store"
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/order_sync.py:0
+msgid ""
+"Only a Shopify order in error with a delivered sales order can be marked as "
+"handled."
 msgstr ""
 
 #. module: shopify_connector
@@ -4845,6 +4886,13 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/order_sync.py:0
 msgid "The Shopify guest customer is not configured."
+msgstr ""
+
+#. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_shopify_order__handled_state
+msgid ""
+"The Shopify line quantities and cancellation that a person handled by hand "
+"after delivery. Later imports only apply new changes."
 msgstr ""
 
 #. module: shopify_connector
