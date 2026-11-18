@@ -718,6 +718,7 @@ class TestShopifyFulfillmentSync(TransactionCase):
         picking.button_validate()
         self.assertEqual(picking.state, "done")
         self.assertFalse(self._push_jobs(picking), "No push while in error.")
+        self.assertTrue(picking.shopify_push_pending)
 
         self._import_order_again()
         self._import_order_again()
@@ -726,9 +727,23 @@ class TestShopifyFulfillmentSync(TransactionCase):
         self.assertEqual(len(job), 1, "A second import queues no duplicate.")
         self.assertEqual(job.method_name, "_job_push_picking_fulfillment")
         self.assertEqual(job.args, [picking.id])
+        self.assertFalse(picking.shopify_push_pending)
+
+    def test_delivery_validated_without_push_is_not_pushed_after_import(self):
+        # A POS delivery and a delivery validated by a fulfillment imported
+        # from Shopify skip the push. Shopify already has them, so the next
+        # import must not send them back, even without a linked fulfillment.
+        picking = self._delivered_picking()
+        self.assertFalse(picking.shopify_fulfillment_ids)
+        self.assertFalse(picking.shopify_push_pending)
+
+        self._import_order_again()
+
+        self.assertFalse(self._push_jobs(picking))
 
     def test_delivery_with_fulfillment_is_not_pushed_again_after_import(self):
         picking = self._delivered_picking()
+        picking.shopify_push_pending = True
         self._unconfirmed_attempt(picking)
 
         self._import_order_again()
@@ -737,6 +752,7 @@ class TestShopifyFulfillmentSync(TransactionCase):
 
     def test_failed_push_is_not_queued_again_after_import(self):
         picking = self._delivered_picking()
+        picking.shopify_push_pending = True
         self.env["shopify.location"].search(
             [("instance_id", "=", self.instance.id)]
         ).active = False
@@ -748,6 +764,7 @@ class TestShopifyFulfillmentSync(TransactionCase):
 
     def test_draft_order_import_pushes_no_delivery(self):
         picking = self._delivered_picking()
+        picking.shopify_push_pending = True
         self.order_binding.is_draft = True
 
         self._import_order_again()

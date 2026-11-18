@@ -376,3 +376,10 @@ class StockPickingShopifyFulfillmentBinding(models.Model):
         string="Shopify Fulfillments",
         readonly=True,
     )
+    shopify_push_pending = fields.Boolean(
+        readonly=True,
+        copy=False,
+        help="The delivery was validated while its Shopify order was not "
+        "synced, so it was not sent to Shopify yet. It is sent after the "
+        "next successful import of the order.",
+    )
