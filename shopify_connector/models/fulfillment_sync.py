@@ -1090,6 +1090,15 @@ class ShopifyFulfillmentActions(models.Model):
 class StockPickingShopifyFulfillmentSync(models.Model):
     _inherit = "stock.picking"
 
+    def send_to_shipper(self):
+        # When a fulfillment imported from Shopify validates the delivery, the
+        # parcel has already shipped. Odoo would book a shipment with an
+        # integrated carrier when the delivery has no tracking number, and buy
+        # a label for it. Skip the booking in that case.
+        if self.env.context.get("skip_shopify_carrier_booking"):
+            return
+        return super().send_to_shipper()
+
     def write(self, vals):
         result = super().write(vals)
         if {"carrier_tracking_ref", "carrier_id"}.intersection(vals):
@@ -1527,8 +1536,8 @@ class ShopifyExternalFulfillmentImport(models.Model):
                 )
             )
         pickings = self._external_moves(allocation).picking_id
-        # Copy the tracking first: when a delivery without tracking number is
-        # validated, Odoo books a shipment with an integrated carrier.
+        # Copy the tracking first, so the delivery keeps the tracking number
+        # of the Shopify fulfillment.
         self._apply_external_tracking(pickings, payload, webhook_payload)
         self._ship_external_moves(allocation)
         return pickings.sorted(lambda picking: (picking.date_done, picking.id))
@@ -1677,11 +1686,14 @@ class ShopifyExternalFulfillmentImport(models.Model):
                 move.picked = True
             else:
                 move.picked = False
-        # Shopify already has this fulfillment, so it is not sent back.
+        # Shopify already has this fulfillment, so it is not sent back. The
+        # parcel has already shipped, so no shipment is booked with the
+        # carrier either.
         pickings.with_context(
             skip_backorder=True,
             skip_sms=True,
             skip_shopify_fulfillment_push=True,
+            skip_shopify_carrier_booking=True,
         ).button_validate()
         not_done = pickings.filtered(lambda picking: picking.state != "done")
         if not_done:
