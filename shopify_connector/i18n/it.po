@@ -2698,6 +2698,15 @@ msgstr ""
 "pertanto i rispettivi ordini di vendita avranno lo stesso nome."
 
 #. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_shopify_carrier_mapping__shipping_method_names
+msgid ""
+"Names of the Shopify shipping methods that this carrier delivers, separated "
+"by commas (e.g. Standard, Express). An imported order with one of these "
+"shipping methods gets this carrier on the order and its delivery. Upper and "
+"lower case do not matter."
+msgstr ""
+
+#. module: shopify_connector
 #. odoo-python
 #: code:addons/shopify_connector/models/inventory_sync.py:0
 msgid ""
@@ -4422,6 +4431,11 @@ msgid "Shopify SKU"
 msgstr "SKU Shopify"
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_carrier_mapping__shipping_method_names
+msgid "Shopify Shipping Methods"
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__shop_currency_id
 msgid "Shopify Shop Currency"
 msgstr "Valuta del negozio Shopify"
@@ -5785,6 +5799,11 @@ msgid ""
 msgstr ""
 "Non è possibile modificare l'azienda o il dominio del negozio di un'istanza "
 "dopo la creazione di record sincronizzati."
+
+#. module: shopify_connector
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_fulfillment_view_form
+msgid "e.g. Standard, Express"
+msgstr ""
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_view_form
