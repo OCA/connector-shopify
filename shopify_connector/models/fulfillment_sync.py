@@ -92,7 +92,50 @@ class ShopifyOrderFulfillmentSync(models.Model):
                     f"{binding.instance_id.id}.{binding.shopify_id}"
                 ),
             )._job_refresh_fulfillment_orders()
+            binding._queue_missed_fulfillment_pushes()
         return result
+
+    def _queue_missed_fulfillment_pushes(self):
+        """Queue the push of done deliveries that were never sent to Shopify.
+
+        A delivery validated while this order was in error queued no push,
+        and nothing else sends it later. Its validation marked it as pending,
+        so queue it once the order imports again.
+
+        Only marked deliveries are queued. A done delivery without a
+        fulfillment is not always unsent: a POS delivery, or the second
+        delivery of a fulfillment imported from Shopify, is already
+        fulfilled in Shopify.
+        """
+        self.ensure_one()
+        if self.env.context.get("skip_shopify_fulfillment_push"):
+            return
+        summary = self._fulfillment_push_failed_summary()
+        pickings = self.odoo_id.picking_ids.sudo().filtered(
+            lambda item: (
+                item.shopify_push_pending
+                and item.state == "done"
+                and item.picking_type_id.code == "outgoing"
+            )
+        )
+        # The push job has its own retry and failure report from here on.
+        pickings.shopify_push_pending = False
+        for picking in pickings:
+            # A delivery with a fulfillment, even a failed one, has its own
+            # retry. A failed push has an activity that says to requeue it.
+            if picking.shopify_fulfillment_ids.filtered(
+                lambda item: item.order_binding_id == self
+            ) or picking.activity_ids.filtered(
+                lambda activity: activity.summary == summary
+            ):
+                continue
+            self.with_delay(
+                description=self.env._("Push Shopify fulfillment for %s", picking.name),
+                identity_key=(
+                    f"shopify.fulfillment.push."
+                    f"{self.instance_id.id}.{self.id}.{picking.id}"
+                ),
+            )._job_push_picking_fulfillment(picking.id)
 
     def action_refresh_fulfillment_orders(self):
         for binding in self.filtered(lambda item: not item.is_draft):
@@ -1129,9 +1172,15 @@ class StockPickingShopifyFulfillmentSync(models.Model):
             # Any stock user may validate a delivery; only the lookup of the
             # order bindings needs Shopify access.
             bindings = picking.sale_id.sudo().shopify_binding_ids.filtered(
-                lambda item: not item.is_draft and item.state == "synced"
+                lambda item: not item.is_draft
             )
-            for binding in bindings:
+            synced = bindings.filtered(lambda item: item.state == "synced")
+            if bindings - synced:
+                # When the order is not synced, for example in error, the
+                # push waits. Mark the delivery, so the next successful
+                # import of the order sends it.
+                picking.sudo().shopify_push_pending = True
+            for binding in synced:
                 binding.with_delay(
                     description=self.env._(
                         "Push Shopify fulfillment for %s", picking.name
