@@ -4155,6 +4155,11 @@ msgid "Shopify Product Variant Binding"
 msgstr ""
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_stock_picking__shopify_push_pending
+msgid "Shopify Push Pending"
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model,name:shopify_connector.model_shopify_refund
 msgid "Shopify Refund Binding"
 msgstr ""
@@ -4935,6 +4940,14 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/fulfillment_binding.py:0
 msgid "The delivery must belong to the Shopify instance company."
+msgstr ""
+
+#. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_stock_picking__shopify_push_pending
+msgid ""
+"The delivery was validated while its Shopify order was not synced, so it was"
+" not sent to Shopify yet. It is sent after the next successful import of the"
+" order."
 msgstr ""
 
 #. module: shopify_connector
