@@ -189,6 +189,11 @@ msgstr "<strong>Cron di riconciliazione scostamenti</strong>"
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
+msgid "<strong>Failed jobs:</strong>"
+msgstr ""
+
+#. module: shopify_connector
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
 msgid "<strong>Financial</strong>"
 msgstr "<strong>Finanziario</strong>"
 
@@ -1244,6 +1249,11 @@ msgid "Dashboard Drift Crons"
 msgstr "Dashboard cron scostamenti"
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__dashboard_failed_jobs
+msgid "Dashboard Failed Jobs"
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__dashboard_financial
 msgid "Dashboard Financial"
 msgstr "Dashboard finanziario"
@@ -1682,6 +1692,12 @@ msgid "External fulfillment is log-only; Odoo delivery was not validated."
 msgstr ""
 "L'evasione esterna viene solo registrata nel log; la consegna Odoo non è "
 "stata convalidata."
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/operability.py:0
+msgid "Failed Shopify Jobs"
+msgstr ""
 
 #. module: shopify_connector
 #. odoo-python
@@ -2988,6 +3004,11 @@ msgstr "Apri"
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
 msgid "Open Errors"
 msgstr "Apri errori"
+
+#. module: shopify_connector
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
+msgid "Open Failed Jobs"
+msgstr ""
 
 #. module: shopify_connector
 #: model:ir.ui.menu,name:shopify_connector.shopify_menu_operations
