@@ -6,6 +6,7 @@ from odoo.addons.shopify_connector.lib.inventory import (
     apply_negative_policy,
     build_inventory_set_payload,
     diff_inventory_levels,
+    level_quantities,
     quantity_for_basis,
     should_ignore_echo,
 )
@@ -72,3 +73,16 @@ class TestShopifyLibInventory(TransactionCase):
                 }
             ],
         }
+
+    def test_level_quantities_reads_every_named_quantity(self):
+        level = {
+            "quantities": [
+                {"name": "available", "quantity": 7},
+                {"name": "committed", "quantity": 1},
+                {"name": "on_hand", "quantity": 8},
+                {"name": "incoming", "quantity": None},
+            ]
+        }
+        assert level_quantities(level) == {"available": 7, "committed": 1, "on_hand": 8}
+        assert level_quantities(None) is None
+        assert level_quantities({"quantities": []}) is None

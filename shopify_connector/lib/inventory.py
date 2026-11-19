@@ -118,6 +118,22 @@ def available_quantity(level: Mapping[str, Any] | None) -> int | None:
     return None
 
 
+def level_quantities(level: Mapping[str, Any] | None) -> dict[str, int] | None:
+    """Every named quantity of a Shopify inventory level, by name."""
+
+    if not level:
+        return None
+    quantities = {}
+    for quantity in level.get("quantities") or []:
+        if (
+            isinstance(quantity, Mapping)
+            and quantity.get("name")
+            and quantity.get("quantity") is not None
+        ):
+            quantities[str(quantity["name"])] = int(quantity["quantity"])
+    return quantities or None
+
+
 def normalize_inventory_bulk_levels(
     records: list[dict[str, Any]],
 ) -> dict[tuple[str, str], int]:

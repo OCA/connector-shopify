@@ -387,6 +387,21 @@ class ShopifyOrderFulfillmentSync(models.Model):
             for fulfillment_order in self.fulfillment_order_ids
         ]
 
+    def _allocated_variant_quantities(self, groups, moves):
+        """The units of each Shopify variant that a fulfillment request sends."""
+        order_lines = {
+            line.shopify_id: line.order_line_shopify_id
+            for line in self.fulfillment_order_ids.line_ids
+        }
+        variants = {move["line_id"]: move["variant_id"] for move in moves}
+        quantities = defaultdict(int)
+        for group in groups:
+            for item in group["line_items"]:
+                variant = variants.get(order_lines.get(item["id"]))
+                if variant:
+                    quantities[variant] += int(item["quantity"])
+        return quantities
+
     def _mapped_source_location(self, picking):
         candidates = self.env["shopify.location"].search(
             [
@@ -711,6 +726,11 @@ class ShopifyOrderFulfillmentSync(models.Model):
                 message=warning,
                 record=binding,
             )
+        self.env["shopify.inventory.state"]._record_fulfilled_quantities(
+            self.instance_id,
+            location.shopify_id,
+            self._allocated_variant_quantities(groups, moves),
+        )
         self.instance_id._write_log(
             entity="fulfillment",
             direction="export",
@@ -1302,6 +1322,7 @@ class ShopifyExternalFulfillmentImport(models.Model):
             "error_message": False,
         }
         echo = bool(binding and binding.origin == "odoo")
+        was_fulfilled = binding.fulfillment_status == "SUCCESS"
         if binding:
             binding.write(values)
         else:
@@ -1350,6 +1371,12 @@ class ShopifyExternalFulfillmentImport(models.Model):
             ),
             record=binding,
         )
+        if binding.fulfillment_status == "SUCCESS" and not was_fulfilled:
+            self.env["shopify.inventory.state"]._record_fulfilled_quantities(
+                instance,
+                binding.location_shopify_id,
+                binding._fulfilled_variant_quantities(payload, webhook_payload),
+            )
         if instance.fulfillment_auto_validate_webhook:
             binding._auto_validate_external(payload, webhook_payload)
         else:
@@ -1363,6 +1390,38 @@ class ShopifyExternalFulfillmentImport(models.Model):
                 record=binding,
             )
         return binding.id
+
+    def _fulfilled_variant_quantities(self, payload, webhook_payload):
+        """The units of each Shopify variant that a Shopify fulfillment holds."""
+        self.ensure_one()
+        variants = {}
+        for line in self.order_binding_id.line_binding_ids:
+            variant = line.variant_shopify_id
+            if not variant and line.odoo_id.product_id:
+                variant = (
+                    self.env["shopify.product.variant"]
+                    .search(
+                        [
+                            ("instance_id", "=", self.instance_id.id),
+                            ("odoo_id", "=", line.odoo_id.product_id.id),
+                        ],
+                        limit=1,
+                    )
+                    .shopify_id
+                )
+            variants[line.shopify_id] = variant
+        quantities = defaultdict(int)
+        lines = _nodes(payload.get("fulfillmentLineItems"))
+        for line in lines:
+            variant = variants.get(str((line.get("lineItem") or {}).get("id") or ""))
+            if variant:
+                quantities[variant] += int(line.get("quantity") or 0)
+        if not lines:
+            for line in webhook_payload.get("line_items") or []:
+                variant = shopify_gid("ProductVariant", line.get("variant_id"))
+                if variant:
+                    quantities[variant] += int(line.get("quantity") or 0)
+        return quantities
 
     def _auto_validate_external(self, payload, webhook_payload):
         self.ensure_one()

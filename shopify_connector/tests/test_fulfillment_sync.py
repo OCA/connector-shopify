@@ -280,6 +280,124 @@ class TestShopifyFulfillmentSync(TransactionCase):
         self.assertEqual(fulfillment.fulfillment_status, "SUCCESS")
         auto_validate.assert_not_called()
 
+    # A fulfillment lowers Shopify's on-hand stock without an inventory
+    # webhook, and Odoo takes the same units out with the delivery. The
+    # recorded on-hand stock follows, so the next webhook does not apply them.
+
+    def _recorded_stock(self, on_hand):
+        location = self.env["shopify.location"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/Location/1",
+                "name": "Fulfillment Location",
+                "active": True,
+                "state": "synced",
+                "warehouse_id": self.warehouse.id,
+                "odoo_location_id": self.warehouse.lot_stock_id.id,
+            }
+        )
+        return self.env["shopify.inventory.state"].create(
+            {
+                "instance_id": self.instance.id,
+                "variant_binding_id": self.variant_binding.id,
+                "location_binding_id": location.id,
+                "last_shopify_on_hand": on_hand,
+                "shopify_snapshot_at": self.env.cr.now(),
+            }
+        )
+
+    def test_a_pushed_fulfillment_is_taken_out_of_the_recorded_stock(self):
+        state = self._recorded_stock(on_hand=5)
+        fulfillment_order = self.env["shopify.fulfillment.order"].create(
+            {
+                "instance_id": self.instance.id,
+                "shopify_id": "gid://shopify/FulfillmentOrder/650",
+                "order_binding_id": self.order_binding.id,
+                "assigned_location_shopify_id": "gid://shopify/Location/1",
+                "fulfillment_status": "OPEN",
+                "state": "synced",
+            }
+        )
+        self.env["shopify.fulfillment.order.line"].create(
+            {
+                "fulfillment_order_id": fulfillment_order.id,
+                "shopify_id": "gid://shopify/FulfillmentOrderLineItem/651",
+                "order_line_binding_id": self.line_binding.id,
+                "order_line_shopify_id": self.line_binding.shopify_id,
+                "total_quantity": 1,
+                "remaining_quantity": 1,
+            }
+        )
+        self.env["stock.quant"]._update_available_quantity(
+            self.product, self.warehouse.lot_stock_id, 1
+        )
+        self.sale.action_confirm()
+        picking = self.sale.picking_ids
+        picking.action_assign()
+        picking.move_ids.quantity = 1
+        with patch.object(
+            type(self.order_binding), "with_delay", return_value=MagicMock()
+        ):
+            picking.button_validate()
+        client = MagicMock()
+        client.execute.return_value = {
+            "fulfillmentCreate": {
+                "fulfillment": {
+                    "id": "gid://shopify/Fulfillment/660",
+                    "status": "SUCCESS",
+                    "location": {"id": "gid://shopify/Location/1"},
+                    "trackingInfo": [],
+                },
+                "userErrors": [],
+            }
+        }
+
+        with (
+            patch.object(type(self.instance), "_shopify_client", return_value=client),
+            patch.object(type(self.order_binding), "_job_refresh_fulfillment_orders"),
+        ):
+            self.order_binding._job_push_picking_fulfillment(picking.id)
+
+        self.assertEqual(state.last_shopify_on_hand, 4)
+
+    def test_an_external_fulfillment_is_taken_out_of_the_recorded_stock(self):
+        state = self._recorded_stock(on_hand=5)
+        client = MagicMock()
+        client.execute.return_value = {
+            "fulfillment": {
+                "id": "gid://shopify/Fulfillment/670",
+                "status": "SUCCESS",
+                "order": {"id": self.order_binding.shopify_id},
+                "location": {"id": "gid://shopify/Location/1"},
+                "trackingInfo": [],
+                "fulfillmentLineItems": {
+                    "nodes": [
+                        {
+                            "id": "gid://shopify/FulfillmentLineItem/671",
+                            "quantity": 1,
+                            "lineItem": {"id": self.line_binding.shopify_id},
+                        }
+                    ]
+                },
+            }
+        }
+
+        with (
+            patch.object(type(self.instance), "_shopify_client", return_value=client),
+            patch.object(
+                type(self.env["shopify.fulfillment"]), "_auto_validate_external"
+            ),
+        ):
+            for _update in range(2):
+                self.env["shopify.fulfillment"]._job_import_from_shopify(
+                    self.instance.id,
+                    "gid://shopify/Fulfillment/670",
+                    {"order_id": 610, "status": "success"},
+                )
+
+        # A later update of the same fulfillment does not take it out again.
+        self.assertEqual(state.last_shopify_on_hand, 4)
+
     def test_stock_user_can_cancel_picking_with_fulfillment(self):
         stock_user = new_test_user(
             self.env,
