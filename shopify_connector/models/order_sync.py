@@ -1183,6 +1183,41 @@ class ShopifyOrderSync(models.Model):
         for identifier, line_binding in existing.items():
             if identifier not in incoming_ids:
                 line_binding.odoo_id.unlink()
+        self._apply_shipping_carrier(instance, sale_order, order_data)
+
+    def _apply_shipping_carrier(self, instance, sale_order, order_data):
+        """Set the carrier mapped to the order's Shopify shipping method.
+
+        The shipping method is only a price line on the order. Without a
+        carrier on the delivery, the warehouse has to choose it by hand.
+        """
+        carrier = self._shipping_method_carrier(instance, order_data["shipping_lines"])
+        if not carrier:
+            return
+        # Keep a carrier that is already set: a user may have changed it.
+        if not sale_order.carrier_id:
+            sale_order.with_context(shopify_order_import=True).write(
+                {"carrier_id": carrier.id}
+            )
+        # The order sets the carrier on the deliveries made after this point.
+        # A delivery that already exists (an order imported again) gets it here.
+        sale_order.picking_ids.filtered(
+            lambda picking: picking.picking_type_code == "outgoing"
+            and picking.state not in ("done", "cancel")
+            and not picking.carrier_id
+        ).write({"carrier_id": carrier.id})
+
+    def _shipping_method_carrier(self, instance, shipping_lines):
+        mappings = instance.carrier_mapping_ids.filtered("shipping_method_names")
+        for shipping in shipping_lines:
+            names = {
+                (shipping.get(key) or "").strip().casefold()
+                for key in ("title", "code")
+            } - {""}
+            for mapping in mappings:
+                if names & mapping._shipping_method_name_set():
+                    return mapping.carrier_id
+        return self.env["delivery.carrier"]
 
     def _line_product(self, instance, line_data):
         if line_data["gift_card"]:

@@ -481,7 +481,14 @@ the initial imports.</li>
 </ul>
 </li>
 <li>Review the payment-gateway and carrier mappings before enabling
-unattended order and fulfillment processing.</li>
+unattended order and fulfillment processing. In the carrier mappings
+(tab <strong>Fulfillment</strong>), <strong>Shopify Shipping Methods</strong> lists the Shopify
+shipping methods that each carrier delivers, separated by commas
+(e.g. <tt class="docutils literal">Standard</tt>). An imported order with one of these shipping
+methods (title or code, upper and lower case do not matter) gets that
+carrier on the order and its delivery. A carrier that is already set
+is kept, and an open delivery without a carrier gets it when the
+order is imported again.</li>
 </ol>
 <p>Jobs run on the <tt class="docutils literal">root.shopify.import</tt>, <tt class="docutils literal">root.shopify.export</tt> and
 <tt class="docutils literal">root.shopify.webhook</tt> channels. Add <tt class="docutils literal">queue_job</tt> to the server-wide
