@@ -386,7 +386,6 @@ class TestShopifyInventory(TransactionCase):
                 "move_ids": [
                     Command.create(
                         {
-                            "name": product.name,
                             "product_id": product.id,
                             "product_uom_qty": 1,
                             "product_uom": product.uom_id.id,
