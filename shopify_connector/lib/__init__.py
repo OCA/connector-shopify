@@ -54,7 +54,7 @@ from .order import (
     selected_money,
     shopify_gid,
 )
-from .webhook import verify_webhook_hmac
+from .webhook import verify_webhook_hmac, webhook_topic_header
 
 __all__ = [
     "API_VERSION",
@@ -105,10 +105,17 @@ __all__ = [
     "selected_money",
     "shopify_gid",
     "verify_webhook_hmac",
+    "webhook_topic_header",
 ]
-from .operability import missing_scopes, scope_handles, state_count_label
+from .operability import (
+    identity_key_pattern,
+    missing_scopes,
+    scope_handles,
+    state_count_label,
+)
 
 __all__ = [
+    "identity_key_pattern",
     "missing_scopes",
     "scope_handles",
     "state_count_label",
