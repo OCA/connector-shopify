@@ -191,6 +191,11 @@ msgstr "<strong>Cron di riconciliazione scostamenti</strong>"
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
+msgid "<strong>Failed jobs:</strong>"
+msgstr ""
+
+#. module: shopify_connector
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
 msgid "<strong>Financial</strong>"
 msgstr "<strong>Finanziario</strong>"
 
@@ -484,10 +489,10 @@ msgstr "Credenziali dell'app"
 #. module: shopify_connector
 #. odoo-python
 #: code:addons/shopify_connector/models/inventory_sync.py:0
-msgid "Applied Shopify inventory %(quantity)s for %(variant)s at %(location)s."
+msgid ""
+"Applied Shopify inventory change %(delta)+d for %(variant)s at %(location)s "
+"(available %(quantity)s)."
 msgstr ""
-"Applicata in Shopify la quantità di magazzino %(quantity)s per %(variant)s "
-"presso %(location)s."
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_wizard_view_form
@@ -1229,6 +1234,11 @@ msgid "Dashboard Drift Crons"
 msgstr "Dashboard cron scostamenti"
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__dashboard_failed_jobs
+msgid "Dashboard Failed Jobs"
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__dashboard_financial
 msgid "Dashboard Financial"
 msgstr "Dashboard Finanziario"
@@ -1674,6 +1684,12 @@ msgid "External fulfillment is log-only; Odoo delivery was not validated."
 msgstr ""
 "L'evasione esterna viene solo registrata nel log; la consegna Odoo non è "
 "stata convalidata."
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/operability.py:0
+msgid "Failed Shopify Jobs"
+msgstr ""
 
 #. module: shopify_connector
 #. odoo-python
@@ -2394,6 +2410,11 @@ msgid "Last Pushed Quantity"
 msgstr "Ultima quantità inviata"
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_inventory_state__last_shopify_on_hand
+msgid "Last Shopify On Hand"
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_inventory_state__last_shopify_quantity
 msgid "Last Shopify Quantity"
 msgstr "Ultima quantità Shopify"
@@ -3032,6 +3053,11 @@ msgstr "Apri"
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
 msgid "Open Errors"
 msgstr "Apri errori"
+
+#. module: shopify_connector
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
+msgid "Open Failed Jobs"
+msgstr ""
 
 #. module: shopify_connector
 #: model:ir.ui.menu,name:shopify_connector.shopify_menu_operations
@@ -4441,6 +4467,11 @@ msgid "Shopify Shop Currency"
 msgstr "Valuta del negozio Shopify"
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_inventory_state__shopify_snapshot_at
+msgid "Shopify Snapshot At"
+msgstr ""
+
+#. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_product_template_view_search
 msgid "Shopify Status"
 msgstr "Stato Shopify"
@@ -4666,6 +4697,30 @@ msgstr "Le giacenze Shopify devono essere associate a un'ubicazione interna."
 #. odoo-python
 #: code:addons/shopify_connector/models/inventory_sync.py:0
 msgid ""
+"Shopify inventory of %(variant)s at %(location)s changed through its orders "
+"(available %(quantity)s); Odoo records them with the order and its delivery."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/inventory_sync.py:0
+msgid ""
+"Shopify inventory of %(variant)s at %(location)s waited %(minutes)s minutes "
+"for its fulfillments still being recorded, and is applied without them."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/inventory_sync.py:0
+msgid ""
+"Shopify inventory of %(variant)s at %(location)s waits for its fulfillments "
+"still being recorded."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/inventory_sync.py:0
+msgid ""
 "Shopify location %(name)s is not mapped; inventory writes are disabled for "
 "it."
 msgstr ""
@@ -4830,6 +4885,13 @@ msgstr "Rettifica delle imposte/degli arrotondamenti Shopify"
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_log_view_search
 msgid "Shopify to Odoo"
 msgstr "Da Shopify a Odoo"
+
+#. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_shopify_inventory_state__last_shopify_on_hand
+msgid ""
+"Shopify's on-hand quantity as Odoo has recorded it: the last one read, less "
+"what the connector has fulfilled since."
+msgstr ""
 
 #. module: shopify_connector
 #: model:ir.actions.server,name:shopify_connector.ir_cron_prune_shopify_webhook_events_ir_actions_server
@@ -5772,6 +5834,13 @@ msgstr ""
 "essere convalidate manualmente."
 
 #. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_shopify_inventory_state__shopify_snapshot_at
+msgid ""
+"When Shopify's on-hand quantity was last read. Empty until the first "
+"inventory webhook reads it."
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields,help:shopify_connector.field_shopify_instance__fulfillment_validate_unreserved
 msgid ""
 "When validating a delivery from a Shopify fulfillment, ship the fulfilled "
@@ -5819,6 +5888,7 @@ msgstr "gateway-"
 
 #. module: shopify_connector
 #. odoo-python
+#: code:addons/shopify_connector/models/operability.py:0
 #: code:addons/shopify_connector/models/order_sync.py:0
 msgid "id"
 msgstr "id"
@@ -5846,6 +5916,12 @@ msgstr "nessun registro dei risultati"
 #: code:addons/shopify_connector/models/operability.py:0
 msgid "not run yet"
 msgstr "non ancora eseguito"
+
+#~ msgid ""
+#~ "Applied Shopify inventory %(quantity)s for %(variant)s at %(location)s."
+#~ msgstr ""
+#~ "Applicata in Shopify la quantità di magazzino %(quantity)s per %"
+#~ "(variant)s presso %(location)s."
 
 #~ msgid "Daily order drift reconciliation queued with a two-day overlap."
 #~ msgstr ""
