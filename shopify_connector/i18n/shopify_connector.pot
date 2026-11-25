@@ -157,6 +157,11 @@ msgstr ""
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
+msgid "<strong>Failed jobs:</strong>"
+msgstr ""
+
+#. module: shopify_connector
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
 msgid "<strong>Financial</strong>"
 msgstr ""
 
@@ -422,7 +427,8 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/inventory_sync.py:0
 msgid ""
-"Applied Shopify inventory %(quantity)s for %(variant)s at %(location)s."
+"Applied Shopify inventory change %(delta)+d for %(variant)s at %(location)s "
+"(available %(quantity)s)."
 msgstr ""
 
 #. module: shopify_connector
@@ -1135,6 +1141,11 @@ msgid "Dashboard Drift Crons"
 msgstr ""
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__dashboard_failed_jobs
+msgid "Dashboard Failed Jobs"
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__dashboard_financial
 msgid "Dashboard Financial"
 msgstr ""
@@ -1547,6 +1558,12 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/fulfillment_sync.py:0
 msgid "External fulfillment is log-only; Odoo delivery was not validated."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/operability.py:0
+msgid "Failed Shopify Jobs"
 msgstr ""
 
 #. module: shopify_connector
@@ -2240,6 +2257,11 @@ msgid "Last Pushed Quantity"
 msgstr ""
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_inventory_state__last_shopify_on_hand
+msgid "Last Shopify On Hand"
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_inventory_state__last_shopify_quantity
 msgid "Last Shopify Quantity"
 msgstr ""
@@ -2842,6 +2864,11 @@ msgstr ""
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
 msgid "Open Errors"
+msgstr ""
+
+#. module: shopify_connector
+#: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
+msgid "Open Failed Jobs"
 msgstr ""
 
 #. module: shopify_connector
@@ -4220,6 +4247,11 @@ msgid "Shopify Shop Currency"
 msgstr ""
 
 #. module: shopify_connector
+#: model:ir.model.fields,field_description:shopify_connector.field_shopify_inventory_state__shopify_snapshot_at
+msgid "Shopify Snapshot At"
+msgstr ""
+
+#. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_product_template_view_search
 msgid "Shopify Status"
 msgstr ""
@@ -4426,6 +4458,30 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/inventory_sync.py:0
 msgid ""
+"Shopify inventory of %(variant)s at %(location)s changed through its orders "
+"(available %(quantity)s); Odoo records them with the order and its delivery."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/inventory_sync.py:0
+msgid ""
+"Shopify inventory of %(variant)s at %(location)s waited %(minutes)s minutes "
+"for its fulfillments still being recorded, and is applied without them."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/inventory_sync.py:0
+msgid ""
+"Shopify inventory of %(variant)s at %(location)s waits for its fulfillments "
+"still being recorded."
+msgstr ""
+
+#. module: shopify_connector
+#. odoo-python
+#: code:addons/shopify_connector/models/inventory_sync.py:0
+msgid ""
 "Shopify location %(name)s is not mapped; inventory writes are disabled for "
 "it."
 msgstr ""
@@ -4571,6 +4627,13 @@ msgstr ""
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_fulfillment_view_form
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_log_view_search
 msgid "Shopify to Odoo"
+msgstr ""
+
+#. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_shopify_inventory_state__last_shopify_on_hand
+msgid ""
+"Shopify's on-hand quantity as Odoo has recorded it: the last one read, less "
+"what the connector has fulfilled since."
 msgstr ""
 
 #. module: shopify_connector
@@ -5468,6 +5531,13 @@ msgid ""
 msgstr ""
 
 #. module: shopify_connector
+#: model:ir.model.fields,help:shopify_connector.field_shopify_inventory_state__shopify_snapshot_at
+msgid ""
+"When Shopify's on-hand quantity was last read. Empty until the first "
+"inventory webhook reads it."
+msgstr ""
+
+#. module: shopify_connector
 #: model:ir.model.fields,help:shopify_connector.field_shopify_instance__fulfillment_validate_unreserved
 msgid ""
 "When validating a delivery from a Shopify fulfillment, ship the fulfilled "
@@ -5508,6 +5578,7 @@ msgstr ""
 
 #. module: shopify_connector
 #. odoo-python
+#: code:addons/shopify_connector/models/operability.py:0
 #: code:addons/shopify_connector/models/order_sync.py:0
 msgid "id"
 msgstr ""
