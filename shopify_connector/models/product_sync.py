@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -34,6 +35,10 @@ from ..lib.product import (
     sign_product_image_path,
 )
 from .webhook_event import WEBHOOK_HANDLERS
+
+IMAGE_DOWNLOAD_ATTEMPTS = 4
+IMAGE_DOWNLOAD_BACKOFF = 1.0
+IMAGE_DOWNLOAD_RETRY_STATUSES = {429, 500, 502, 503, 504}
 
 
 def _utc_datetime(value):
@@ -1075,9 +1080,27 @@ class ShopifyProductTemplateSync(models.Model):
 
     @api.model
     def _download_image(self, url):
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        return response.content
+        """Download a Shopify image, retrying transient CDN failures.
+
+        The Shopify CDN now and then answers 502 or 503 for an image that
+        loads fine a moment later. Without a retry, one such answer fails the
+        whole product import and leaves the Odoo product half created.
+        """
+        for attempt in range(IMAGE_DOWNLOAD_ATTEMPTS):
+            last_attempt = attempt == IMAGE_DOWNLOAD_ATTEMPTS - 1
+            try:
+                response = requests.get(url, timeout=30)
+            except (requests.ConnectionError, requests.Timeout):
+                if last_attempt:
+                    raise
+            else:
+                if (
+                    response.status_code not in IMAGE_DOWNLOAD_RETRY_STATUSES
+                    or last_attempt
+                ):
+                    response.raise_for_status()
+                    return response.content
+            time.sleep(IMAGE_DOWNLOAD_BACKOFF * (2**attempt))
 
     @api.model
     def _job_archive_deleted_product(self, instance_id, shopify_id):
