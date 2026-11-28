@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 19.0\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-11-08 15:18+0000\n"
+"PO-Revision-Date: 2026-11-28 17:46+0000\n"
 "Last-Translator: mymage <stefano.consolaro@mymage.it>\n"
 "Language-Team: none\n"
 "Language: it\n"
@@ -14,7 +14,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: \n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.15.2\n"
+"X-Generator: Weblate 2026.11.2\n"
 
 #. module: shopify_connector
 #. odoo-python
@@ -192,7 +192,7 @@ msgstr "<strong>Cron di riconciliazione scostamenti</strong>"
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
 msgid "<strong>Failed jobs:</strong>"
-msgstr ""
+msgstr "<strong>Job non riusciti:</strong>"
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
@@ -469,7 +469,7 @@ msgstr "Un'altra attività sta importando l'ordine Shopify %s."
 #. odoo-python
 #: code:addons/shopify_connector/models/customer_sync.py:0
 msgid "Another job is matching a contact for Shopify customer %s."
-msgstr ""
+msgstr "Un altro job sta associando un contatto per il cliente Shopify %s."
 
 #. module: shopify_connector
 #. odoo-python
@@ -493,6 +493,8 @@ msgid ""
 "Applied Shopify inventory change %(delta)+d for %(variant)s at %(location)s "
 "(available %(quantity)s)."
 msgstr ""
+"Applicata modifica inventario Shopify %(delta)+d per %(variant)s presso %"
+"(location)s (disponibile %(quantity)s)."
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_wizard_view_form
@@ -1236,7 +1238,7 @@ msgstr "Dashboard cron scostamenti"
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__dashboard_failed_jobs
 msgid "Dashboard Failed Jobs"
-msgstr ""
+msgstr "Bacheca job non riusciti"
 
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__dashboard_financial
@@ -1689,7 +1691,7 @@ msgstr ""
 #. odoo-python
 #: code:addons/shopify_connector/models/operability.py:0
 msgid "Failed Shopify Jobs"
-msgstr ""
+msgstr "Job Shopify non riusciti"
 
 #. module: shopify_connector
 #. odoo-python
@@ -1852,17 +1854,17 @@ msgstr "Identificativo"
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_order__handled_uid
 msgid "Handled By"
-msgstr ""
+msgstr "Gestito da"
 
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_order__handled_date
 msgid "Handled On"
-msgstr ""
+msgstr "Gestito il"
 
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_order__handled_state
 msgid "Handled Shopify State"
-msgstr ""
+msgstr "Stato Shopify gestito"
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_view_form
@@ -2412,7 +2414,7 @@ msgstr "Ultima quantità inviata"
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_inventory_state__last_shopify_on_hand
 msgid "Last Shopify On Hand"
-msgstr ""
+msgstr "Ultima giacenza Shopify"
 
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_inventory_state__last_shopify_quantity
@@ -2627,12 +2629,12 @@ msgstr "Mappato"
 #. module: shopify_connector
 #: model:ir.actions.server,name:shopify_connector.action_mark_handled_shopify_orders
 msgid "Mark Shopify Orders as Handled"
-msgstr ""
+msgstr "Segna ordini Shopify come gestiti"
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_order_view_form
 msgid "Mark as Handled"
-msgstr ""
+msgstr "Segna come gestito"
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_order_view_form
@@ -2640,6 +2642,9 @@ msgid ""
 "Mark this Shopify change as handled by hand in Odoo? Later imports keep the "
 "current Odoo order lines and apply only new changes."
 msgstr ""
+"Segnare questa modifica Shopify come gestita manualmente in Odoo? Le "
+"importazioni successive manterranno le righe ordine Odoo attuali e "
+"applicheranno solo le nuove modifiche."
 
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__webhook_max_payload_bytes
@@ -2726,6 +2731,10 @@ msgid ""
 "shipping methods gets this carrier on the order and its delivery. Upper and "
 "lower case do not matter."
 msgstr ""
+"Nomi dei metodi di spedizione Shopify gestiti da questo vettore, separati da "
+"virgole (es. Standard, Express). Un ordine importato con uno di questi "
+"metodi di spedizione riceve questo vettore sull'ordine e sulla relativa "
+"consegna. Maiuscole e minuscole non fanno differenza."
 
 #. module: shopify_connector
 #. odoo-python
@@ -3043,6 +3052,8 @@ msgid ""
 "Only a Shopify order in error with a delivered sales order can be marked as "
 "handled."
 msgstr ""
+"Solo un ordine Shopify in errore con un ordine di vendita consegnato può "
+"essere segnato come gestito."
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_log_view_list
@@ -3057,7 +3068,7 @@ msgstr "Apri errori"
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_dashboard_kanban
 msgid "Open Failed Jobs"
-msgstr ""
+msgstr "Apri job non riusciti"
 
 #. module: shopify_connector
 #: model:ir.ui.menu,name:shopify_connector.shopify_menu_operations
@@ -4413,7 +4424,7 @@ msgstr "Collegamento della variante del prodotto Shopify"
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_stock_picking__shopify_push_pending
 msgid "Shopify Push Pending"
-msgstr ""
+msgstr "Invio a Shopify in sospeso"
 
 #. module: shopify_connector
 #: model:ir.model,name:shopify_connector.model_shopify_refund
@@ -4459,7 +4470,7 @@ msgstr "SKU Shopify"
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_carrier_mapping__shipping_method_names
 msgid "Shopify Shipping Methods"
-msgstr ""
+msgstr "Metodi di spedizione Shopify"
 
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_instance__shop_currency_id
@@ -4469,7 +4480,7 @@ msgstr "Valuta del negozio Shopify"
 #. module: shopify_connector
 #: model:ir.model.fields,field_description:shopify_connector.field_shopify_inventory_state__shopify_snapshot_at
 msgid "Shopify Snapshot At"
-msgstr ""
+msgstr "Istantanea Shopify alle"
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_product_template_view_search
@@ -4700,6 +4711,9 @@ msgid ""
 "Shopify inventory of %(variant)s at %(location)s changed through its orders "
 "(available %(quantity)s); Odoo records them with the order and its delivery."
 msgstr ""
+"L'inventario Shopify di %(variant)s presso %(location)s è cambiato tramite i "
+"suoi ordini (disponibile %(quantity)s); Odoo li registra con l'ordine e la "
+"relativa consegna."
 
 #. module: shopify_connector
 #. odoo-python
@@ -4708,6 +4722,9 @@ msgid ""
 "Shopify inventory of %(variant)s at %(location)s waited %(minutes)s minutes "
 "for its fulfillments still being recorded, and is applied without them."
 msgstr ""
+"L'inventario Shopify di %(variant)s presso %(location)s ha atteso %(minutes)"
+"s minuti per le sue evasioni ancora in registrazione ed è applicato senza di "
+"esse."
 
 #. module: shopify_connector
 #. odoo-python
@@ -4716,6 +4733,8 @@ msgid ""
 "Shopify inventory of %(variant)s at %(location)s waits for its fulfillments "
 "still being recorded."
 msgstr ""
+"L'inventario Shopify di %(variant)s presso %(location)s è in attesa delle "
+"sue evasioni ancora in registrazione."
 
 #. module: shopify_connector
 #. odoo-python
@@ -4892,6 +4911,8 @@ msgid ""
 "Shopify's on-hand quantity as Odoo has recorded it: the last one read, less "
 "what the connector has fulfilled since."
 msgstr ""
+"La quantità disponibile su Shopify come registrata da Odoo: l'ultima letta, "
+"meno quanto evaso dal connettore da allora."
 
 #. module: shopify_connector
 #: model:ir.actions.server,name:shopify_connector.ir_cron_prune_shopify_webhook_events_ir_actions_server
@@ -5239,6 +5260,9 @@ msgid ""
 "The Shopify line quantities and cancellation that a person handled by hand "
 "after delivery. Later imports only apply new changes."
 msgstr ""
+"Le quantità di riga e l'annullamento Shopify gestiti manualmente da una "
+"persona dopo la consegna. Le importazioni successive applicano solo le nuove "
+"modifiche."
 
 #. module: shopify_connector
 #. odoo-python
@@ -5292,6 +5316,9 @@ msgid ""
 "not sent to Shopify yet. It is sent after the next successful import of the "
 "order."
 msgstr ""
+"La consegna è stata validata mentre il relativo ordine Shopify non era "
+"sincronizzato, quindi non è stata ancora inviata a Shopify. Verrà inviata "
+"dopo la prossima importazione riuscita dell'ordine."
 
 #. module: shopify_connector
 #. odoo-python
@@ -5839,6 +5866,8 @@ msgid ""
 "When Shopify's on-hand quantity was last read. Empty until the first "
 "inventory webhook reads it."
 msgstr ""
+"Quando è stata letta l'ultima volta la quantità disponibile di Shopify. "
+"Vuoto fino alla prima lettura tramite webhook di inventario."
 
 #. module: shopify_connector
 #: model:ir.model.fields,help:shopify_connector.field_shopify_instance__fulfillment_validate_unreserved
@@ -5872,7 +5901,7 @@ msgstr ""
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_fulfillment_view_form
 msgid "e.g. Standard, Express"
-msgstr ""
+msgstr "es. Standard, Express"
 
 #. module: shopify_connector
 #: model_terms:ir.ui.view,arch_db:shopify_connector.shopify_instance_view_form
