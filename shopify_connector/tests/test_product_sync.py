@@ -1,12 +1,16 @@
 from unittest.mock import Mock, patch
 
 import psycopg2
+import requests
 
 from odoo.exceptions import ValidationError
 from odoo.tests.common import TransactionCase
 
 from ..lib.product import merge_owned_fields
-from ..models.product_sync import ShopifyProductTemplateSync
+from ..models.product_sync import (
+    IMAGE_DOWNLOAD_ATTEMPTS,
+    ShopifyProductTemplateSync,
+)
 from .common import (
     MAIN_IMAGE_ID,
     SHARED_IMAGE_ID,
@@ -762,3 +766,56 @@ class TestShopifyExportInventoryTracking(TransactionCase):
         values = self._variant_input(service)
 
         self.assertNotIn("inventoryItem", values)
+
+
+class TestShopifyImageDownloadRetry(TransactionCase):
+    def _response(self, status, content=b""):
+        response = requests.Response()
+        response.status_code = status
+        response._content = content
+        response.url = "https://cdn.shopify.com/image.png"
+        return response
+
+    def _download(self, side_effect):
+        model = self.env["shopify.product.template"]
+        target = "odoo.addons.shopify_connector.models.product_sync"
+        with (
+            patch(f"{target}.requests.get", side_effect=side_effect) as get,
+            patch(f"{target}.time.sleep") as sleep,
+        ):
+            try:
+                return model._download_image("https://cdn.shopify.com/image.png"), (
+                    get,
+                    sleep,
+                )
+            except Exception as exc:  # noqa: BLE001
+                return exc, (get, sleep)
+
+    def test_retries_transient_cdn_error(self):
+        result, (get, sleep) = self._download(
+            [self._response(502), self._response(200, b"image")]
+        )
+        self.assertEqual(result, b"image")
+        self.assertEqual(get.call_count, 2)
+        sleep.assert_called_once()
+
+    def test_retries_connection_error(self):
+        result, (get, _sleep) = self._download(
+            [requests.ConnectionError("reset"), self._response(200, b"image")]
+        )
+        self.assertEqual(result, b"image")
+        self.assertEqual(get.call_count, 2)
+
+    def test_raises_after_last_attempt(self):
+        result, (get, sleep) = self._download(
+            [self._response(502)] * IMAGE_DOWNLOAD_ATTEMPTS
+        )
+        self.assertIsInstance(result, requests.HTTPError)
+        self.assertEqual(get.call_count, IMAGE_DOWNLOAD_ATTEMPTS)
+        self.assertEqual(sleep.call_count, IMAGE_DOWNLOAD_ATTEMPTS - 1)
+
+    def test_does_not_retry_client_error(self):
+        result, (get, sleep) = self._download([self._response(404)])
+        self.assertIsInstance(result, requests.HTTPError)
+        self.assertEqual(get.call_count, 1)
+        sleep.assert_not_called()
